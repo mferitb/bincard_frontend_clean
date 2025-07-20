@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "780893318254",
+    "project_id": "bincard-9a335",
+    "storage_bucket": "bincard-9a335.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:780893318254:android:b6509ed7469455ecdc8a7f",
+        "android_client_info": {
+          "package_name": "com.example.city_card.city_card"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABWTfdWH948_YIi-mmaP9rxpQwh_xDhuo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
