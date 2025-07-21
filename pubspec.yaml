@@ -67,6 +67,7 @@ dependencies:
   mobile_scanner: ^3.5.2
   crypto: ^3.0.3
   card_scanner: ^1.0.2
+  flutter_dotenv: ^5.0.2
 
 
   intl: ^0.19.0
@@ -76,6 +77,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.10
 
 flutter_launcher_icons:
   android: true
@@ -92,3 +94,10 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/images/splash.png
+
+flutter_native_splash:
+  image: assets/images/splash.png
+  color: "#ffffff"
+  android: true
+  ios: true

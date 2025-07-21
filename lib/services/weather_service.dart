@@ -2,13 +2,17 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class WeatherService {
-  static const String _apiKey = '58ba14338e0c90e2c07d5ec6525757ff';
+  static final String _apiKey = dotenv.env['OPENWEATHER_API_KEY'] ?? '';
+  static const String _baseUrl = 'https://api.openweathermap.org/data/2.5';
 
   Future<WeatherData?> getWeather(double lat, double lon) async {
-    final url = 'https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$_apiKey&units=metric&lang=tr';
+    final url = '$_baseUrl/weather?lat=$lat&lon=$lon&appid=$_apiKey&units=metric&lang=tr';
     final response = await http.get(Uri.parse(url));
+    debugPrint('Weather API status: ${response.statusCode}');
+    debugPrint('Weather API body: ${response.body}');
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       return WeatherData.fromJson(data);
