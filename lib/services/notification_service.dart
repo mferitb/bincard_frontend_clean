@@ -86,7 +86,7 @@ class NotificationService {
       }
 
       // 2. URL oluştur
-      final url = 'http://192.168.174.214:8080/v1/api/user/update-fcm-token?fcmToken=$fcmToken';
+      final url = '${ApiConstants.baseUrl}${ApiConstants.updateFcmTokenEndpoint(fcmToken)}';
       debugPrint('[sendFcmTokenToApi] 🔗 URL: $url');
       debugPrint('[sendFcmTokenToApi] 🔐 Authorization: Bearer ${accessToken.substring(0, 10)}...');
       debugPrint('[sendFcmTokenToApi] 🚀 FCM token gönderiliyor: $fcmToken');

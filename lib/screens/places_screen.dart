@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shimmer/shimmer.dart';
+import '../constants/api_constants.dart';
 
 class PlacesScreen extends StatefulWidget {
   const PlacesScreen({Key? key}) : super(key: key);
@@ -303,7 +304,7 @@ class _PlacesScreenState extends State<PlacesScreen> {
 
   void _openDirections(Place place) {
     if (place.geometry != null) {
-      final url = 'https://www.google.com/maps/dir/?api=1&destination=${place.geometry!.location.lat},${place.geometry!.location.lng}';
+      final url = '${ApiConstants.googleMapsDirectionsUrl}?api=1&destination=${place.geometry!.location.lat},${place.geometry!.location.lng}';
       // URL'yi açmak için url_launcher kullanılabilir
       debugPrint('Yol tarifi URL: $url');
     }

@@ -2,16 +2,17 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../constants/api_constants.dart';
 
 class WeatherService {
-  static final String _apiKey = dotenv.env['OPENWEATHER_API_KEY'] ?? '';
-  static const String _baseUrl = 'https://api.openweathermap.org/data/2.5';
+  // static const String _baseUrl = ...
+  // static const String _apiKey = ...
+  // Bunlar kaldırıldı, ApiConstants üzerinden alınacak
 
   Future<WeatherData?> getWeather(double lat, double lon) async {
-    final url = '$_baseUrl/weather?lat=$lat&lon=$lon&appid=$_apiKey&units=metric&lang=tr';
+    final url = '${ApiConstants.openWeatherBaseUrl}/weather?lat=$lat&lon=$lon&appid=${ApiConstants.openWeatherApiKey}&units=metric&lang=tr';
     final response = await http.get(Uri.parse(url));
-    debugPrint('Weather API status: ${response.statusCode}');
+    debugPrint('Weather API status:  [32m [1m [4m${response.statusCode} [0m');
     debugPrint('Weather API body: ${response.body}');
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -53,5 +54,5 @@ class WeatherData {
     );
   }
 
-  String getIconUrl() => 'https://openweathermap.org/img/wn/$iconCode@2x.png';
+  String getIconUrl() => '${ApiConstants.openWeatherBaseUrl.replaceFirst('/data/2.5', '')}/img/wn/$iconCode@2x.png';
 }

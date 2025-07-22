@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
+import '../constants/api_constants.dart';
 
 class NewsDetailScreen extends StatefulWidget {
   final UserNewsDTO news;
@@ -501,7 +502,7 @@ $truncatedContent
     final String appDeepLink = "bincard://news-detail?id=${news.id}";
     shareContent += "\n\n📱 Haberin tamamını görmek için tıklayın: $appDeepLink";
 
-    final String webUrl = "https://bincard.com/news/${news.id}";
+    final String webUrl = "${ApiConstants.newsWebBaseUrl}/news/${news.id}";
     shareContent += "\n🌐 Web: $webUrl";
 
     shareContent += "\n\n📊 Şehir Kartım uygulamasından paylaşıldı";

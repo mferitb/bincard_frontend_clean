@@ -350,7 +350,7 @@ class TokenService {
   // IP adresi al
   Future<String> _getIpAddress() async {
     try {
-      final response = await http.get(Uri.parse('https://api.ipify.org'));
+      final response = await http.get(Uri.parse(ApiConstants.ipifyUrl));
       if (response.statusCode == 200) {
         return response.body;
       }

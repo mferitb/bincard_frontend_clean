@@ -2,9 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/foundation.dart';
+import '../constants/api_constants.dart';
 
 class PlacesService {
-  static const String _apiKey = 'AIzaSyBRYfrvFsxgARSM_iE7JA1EHu1nSpaWAxc'; // Google Places API için bu anahtarın aktif olması gerekiyor
+  // static const String _apiKey = 'AIzaSyBRYfrvFsxgARSM_iE7JA1EHu1nSpaWAxc'; // Google Places API için bu anahtarın aktif olması gerekiyor
   
   // Place türleri ve Türkçe isimleri
   static const Map<String, String> placeTypes = {
@@ -137,11 +138,11 @@ class PlacesService {
   }) async {
     try {
       final url = Uri.parse(
-        'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
+        '${ApiConstants.googlePlacesBaseUrl}/nearbysearch/json'
         '?location=$latitude,$longitude'
         '&radius=${radius.toInt()}'
         '&type=$type'
-        '&key=$_apiKey'
+        '&key=${ApiConstants.googlePlacesApiKey}'
       );
 
       debugPrint('Places API URL: $url');
@@ -201,10 +202,10 @@ class PlacesService {
   Future<PlaceDetails?> getPlaceDetails(String placeId) async {
     try {
       final url = Uri.parse(
-        'https://maps.googleapis.com/maps/api/place/details/json'
+        '${ApiConstants.googlePlacesBaseUrl}/details/json'
         '?place_id=$placeId'
         '&fields=place_id,name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,price_level,opening_hours,photos,geometry,types'
-        '&key=$_apiKey'
+        '&key=${ApiConstants.googlePlacesApiKey}'
       );
 
       final response = await http.get(url);
@@ -229,7 +230,7 @@ class PlacesService {
 
   // Fotoğraf URL'sini al
   String getPhotoUrl(String photoReference, {int maxWidth = 400}) {
-    return 'https://maps.googleapis.com/maps/api/place/photo?maxwidth=$maxWidth&photo_reference=$photoReference&key=$_apiKey';
+    return '${ApiConstants.googlePlacesBaseUrl}/photo?maxwidth=$maxWidth&photo_reference=$photoReference&key=${ApiConstants.googlePlacesApiKey}';
   }
 }
 
@@ -391,6 +392,6 @@ class Photo {
   }
 
   String getPhotoUrl(String apiKey, {int maxWidth = 400}) {
-    return 'https://maps.googleapis.com/maps/api/place/photo?maxwidth=$maxWidth&photo_reference=$photoReference&key=$apiKey';
+    return '${ApiConstants.googlePlacesBaseUrl}/photo?maxwidth=$maxWidth&photo_reference=$photoReference&key=${ApiConstants.googlePlacesApiKey}';
   }
 }

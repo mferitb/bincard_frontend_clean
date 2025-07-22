@@ -14,6 +14,7 @@ import 'package:share_plus/share_plus.dart';
 import 'dart:math';
 import 'news_detail_from_id_screen.dart';
 import 'package:shimmer/shimmer.dart';
+import '../constants/api_constants.dart';
 
 // Video oynatma durumunu takip eden sınıf
 class VideoPlayState {
@@ -98,7 +99,7 @@ ${news.content}
     shareContent += "\n\nHaberi uygulamada görüntülemek için tıklayın: $appDeepLink";
     
     // Alternatif olarak web sayfası linki
-    final String webUrl = "https://bincard.com/news/${news.id}";
+    final String webUrl = "${ApiConstants.newsWebBaseUrl}/news/${news.id}";
     shareContent += "\nveya web sitesinde görüntüleyin: $webUrl";
     
     // Uygulama bilgisi ekle

@@ -73,10 +73,9 @@ String? getCurrentRoute() {
   return null;
 }
 
-void main() async {
-  // Bağımlılıkların başlatılması için
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(); // .env içindeki key'leri burada kullanacaksan önemli
   
   // Durum çubuğunu ve sistem gezinti çubuğunu yapılandır
   SystemChrome.setSystemUIOverlayStyle(
@@ -443,10 +442,13 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  // String? _envError; // .env kontrolü kaldırıldı
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // .env kontrolü kaldırıldı, doğrudan token kontrolüne geç
       _checkTokenAndNavigate();
     });
   }
@@ -492,31 +494,43 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // .envError kontrolü ve hata ekranı kaldırıldı
     return Scaffold(
       backgroundColor: AppTheme.primaryColor,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/images/logo2.png',
-              width: 120,
-              height: 120,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              AppConstants.appName,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/splash.png'),
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/images/logo2.png',
+                width: 120,
+                height: 120,
               ),
-            ),
-            const SizedBox(height: 40),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          ],
+              const SizedBox(height: 24),
+              Text(
+                AppConstants.appName,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 40),
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ],
+          ),
         ),
       ),
     );

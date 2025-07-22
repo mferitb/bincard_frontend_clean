@@ -251,7 +251,7 @@ class AuthService {
   Future<String> getIpAddress() async {
     try {
       // Gerçek IP adresi almak için harici bir servis kullanılabilir
-      final response = await http.get(Uri.parse('https://api.ipify.org'));
+      final response = await http.get(Uri.parse(ApiConstants.ipifyUrl));
       if (response.statusCode == 200) {
         return response.body.trim();
       }
