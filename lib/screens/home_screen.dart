@@ -1212,14 +1212,7 @@ class _HomeScreenState extends State<HomeScreen>
           MaterialPageRoute(builder: (context) => const PaymentPointsScreen()),
         ),
       },
-      {
-        'icon': Icons.place,
-        'label': 'Yakındaki Yerler',
-        'onTap': () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const PlacesScreen()),
-        ),
-      },
+      // Yakındaki Yerler kaldırıldı
     ];
 
     return SlideTransition(
@@ -1339,6 +1332,30 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildMainServicesGrid() {
     final mainServices = [
       {
+        'icon': Icons.place,
+        'label': 'Yakındaki Yerler',
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const PlacesScreen()),
+        ),
+      },
+      {
+        'icon': Icons.card_membership,
+        'label': 'Kart Yenileme',
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CardRenewalScreen()),
+        ),
+      },
+      {
+        'icon': Icons.newspaper,
+        'label': 'Haberler',
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const NewsScreen()),
+        ),
+      },
+      {
         'icon': FontAwesomeIcons.clockRotateLeft,
         'label': 'Geçmiş',
         'onTap': () => Navigator.push(
@@ -1353,19 +1370,11 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       },
       {
-        'icon': Icons.newspaper,
-        'label': 'Haberler',
+        'icon': Icons.help_outline,
+        'label': 'Geri Bildirim',
         'onTap': () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const NewsScreen()),
-        ),
-      },
-      {
-        'icon': Icons.card_membership,
-        'label': 'Kart Yenileme',
-        'onTap': () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const CardRenewalScreen()),
+          MaterialPageRoute(builder: (context) => const FeedbackScreen()),
         ),
       },
       {
@@ -1374,22 +1383,6 @@ class _HomeScreenState extends State<HomeScreen>
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const SettingsScreen()),
-        ),
-      },
-      {
-        'icon': Icons.person,
-        'label': 'Profil',
-        'onTap': () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const ProfileScreen()),
-        ),
-      },
-      {
-        'icon': Icons.help_outline,
-        'label': 'Geri Bildirim',
-        'onTap': () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const FeedbackScreen()),
         ),
       },
     ];
