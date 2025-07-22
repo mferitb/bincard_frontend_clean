@@ -380,40 +380,57 @@ class _PaymentPointsScreenState extends State<PaymentPointsScreen> {
             ),
           ),
           // Harita sabit (Google Maps)
-          SizedBox(
-            height: 260,
-            child: FutureBuilder<List<PaymentPoint>>(
-              future: _paymentPointsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                } else if (snapshot.hasError) {
-                  return Center(child: Text('Hata: \\${snapshot.error}'));
-                }
-                final points = snapshot.data ?? [];
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (_lastFetchedPoints != points) {
-                    _updateLastFetchedPoints(points);
-                    _updateGoogleMarkers(points);
-                  }
-                });
-                return GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: _latitude != null && _longitude != null
-                        ? LatLng(_latitude!, _longitude!)
-                        : points.isNotEmpty
-                            ? LatLng(points.first.location.latitude, points.first.location.longitude)
-                            : const LatLng(39.925533, 32.866287),
-                    zoom: _mapZoom,
-                  ),
-                  markers: _googleMarkers,
-                  onMapCreated: (controller) {
-                    _mapController = controller;
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.grey.shade300, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: SizedBox(
+                height: 260,
+                child: FutureBuilder<List<PaymentPoint>>(
+                  future: _paymentPointsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Center(child: Text('Hata: \\${snapshot.error}'));
+                    }
+                    final points = snapshot.data ?? [];
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (_lastFetchedPoints != points) {
+                        _updateLastFetchedPoints(points);
+                        _updateGoogleMarkers(points);
+                      }
+                    });
+                    return GoogleMap(
+                      initialCameraPosition: CameraPosition(
+                        target: _latitude != null && _longitude != null
+                            ? LatLng(_latitude!, _longitude!)
+                            : points.isNotEmpty
+                                ? LatLng(points.first.location.latitude, points.first.location.longitude)
+                                : const LatLng(39.925533, 32.866287),
+                        zoom: _mapZoom,
+                      ),
+                      markers: _googleMarkers,
+                      onMapCreated: (controller) {
+                        _mapController = controller;
+                      },
+                      myLocationEnabled: true,
+                      myLocationButtonEnabled: true,
+                    );
                   },
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                );
-              },
+                ),
+              ),
             ),
           ),
           // Filtreleme barı sabit
