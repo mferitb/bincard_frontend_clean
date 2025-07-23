@@ -5,6 +5,11 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shimmer/shimmer.dart';
 import '../constants/api_constants.dart';
+import '../screens/home_screen.dart';
+import '../screens/saved_cards_screen.dart';
+import '../screens/wallet_screen.dart';
+import '../screens/profile_screen.dart';
+import '../screens/qr_code_screen.dart';
 
 class PlacesScreen extends StatefulWidget {
   const PlacesScreen({Key? key}) : super(key: key);
@@ -21,17 +26,25 @@ class _PlacesScreenState extends State<PlacesScreen> {
   List<Place> _places = [];
   bool _isLoading = false;
   String? _error;
-  String? _selectedCategory;
+  String _selectedCategory = PlacesService.placeCategories.keys.first;
   String? _selectedType;
+  int _selectedIndex = 0;
   
   // Map controller
   GoogleMapController? _mapController;
   Set<Marker> _markers = {};
-  
+
   @override
   void initState() {
     super.initState();
     _getCurrentLocation();
+    // Varsayılan ilk kategoriye göre ilk tip seçili olsun
+    _selectedType = PlacesService.placeCategories[_selectedCategory]?.first;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_selectedType != null) {
+        _searchPlaces(_selectedType!);
+      }
+    });
   }
 
   Future<void> _getCurrentLocation() async {
@@ -337,379 +350,226 @@ class _PlacesScreenState extends State<PlacesScreen> {
       ),
       body: Column(
         children: [
-          // Category selection
-          if (_selectedCategory == null) _buildCategorySelection(),
-          
-          // Type selection (if category is selected)
-          if (_selectedCategory != null && _selectedType == null) 
-            _buildTypeSelection(),
-          
-          // Map and results
-          if (_selectedType != null)
-            Expanded(
-              child: _buildMapAndResults(),
-            ),
+          _buildHorizontalFilters(),
+          Expanded(
+            child: _buildFullScreenMap(),
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildCategorySelection() {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Kategori Seçin',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+      bottomNavigationBar: BottomAppBar(
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 10,
+        elevation: 10,
+        color: Colors.white,
+        shadowColor: Colors.black.withOpacity(0.05),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(
+                icon: Icons.home_rounded,
+                label: 'Ana Sayfa',
+                index: 0,
               ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.2,
-                ),
-                itemCount: PlacesService.placeCategories.length,
-                itemBuilder: (context, index) {
-                  final category = PlacesService.placeCategories.keys.elementAt(index);
-                  final types = PlacesService.placeCategories[category]!;
-                  final icon = _getCategoryIcon(category);
-                  
-                  return Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          _selectedCategory = category;
-                        });
-                      },
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              AppTheme.primaryColor.withOpacity(0.1),
-                              AppTheme.primaryColor.withOpacity(0.05),
-                            ],
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              icon,
-                              size: 40,
-                              color: AppTheme.primaryColor,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              category,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimaryColor,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${types.length} seçenek',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.textSecondaryColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
+              _buildNavItem(
+                icon: Icons.credit_card_rounded,
+                label: 'Kartlarım',
+                index: 1,
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTypeSelection() {
-    final types = PlacesService.placeCategories[_selectedCategory]!;
-    
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () {
-                    setState(() {
-                      _selectedCategory = null;
-                    });
-                  },
-                ),
-                Expanded(
-                  child: Text(
-                    _selectedCategory!,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView.builder(
-                itemCount: types.length,
-                itemBuilder: (context, index) {
-                  final type = types[index];
-                  final label = PlacesService.placeTypes[type] ?? type;
-                  final icon = _getTypeIcon(type);
-                  
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          icon,
-                          color: AppTheme.primaryColor,
-                          size: 24,
-                        ),
-                      ),
-                      title: Text(
-                        label,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      subtitle: Text('Yakındaki $label'),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                      onTap: () => _searchPlaces(type),
-                    ),
-                  );
-                },
+              const SizedBox(width: 40),
+              _buildNavItem(
+                icon: Icons.account_balance_wallet_rounded,
+                label: 'Cüzdan',
+                index: 2,
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMapAndResults() {
-    if (_currentPosition == null) {
-      return _buildErrorState();
-    }
-
-    return Column(
-      children: [
-        // Map
-        Container(
-          height: 200,
-          margin: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+              _buildNavItem(
+                icon: Icons.person_rounded,
+                label: 'Profil',
+                index: 3,
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-                zoom: 14,
+        ),
+      ),
+      floatingActionButton: Container(
+        margin: const EdgeInsets.only(top: 10),
+        child: FloatingActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const QRCodeScreen(isScanner: true),
               ),
-              markers: _markers,
-              onMapCreated: (controller) {
-                _mapController = controller;
-              },
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
+            );
+          },
+          backgroundColor: AppTheme.primaryColor,
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Icon(Icons.qr_code_scanner, color: Colors.white, size: 26),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required int index,
+  }) {
+    final isSelected = _selectedIndex == index;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedIndex = index;
+          });
+          if (index == 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          } else if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SavedCardsScreen()),
+            );
+          } else if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const WalletScreen()),
+            );
+          } else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ProfileScreen()),
+            );
+          }
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? AppTheme.primaryColor : Colors.grey.shade400,
+              size: 24,
             ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: isSelected ? AppTheme.primaryColor : Colors.grey.shade600,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHorizontalFilters() {
+    final categories = PlacesService.placeCategories.keys.toList();
+    final types = PlacesService.placeCategories[_selectedCategory]!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 56,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            itemCount: categories.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final category = categories[index];
+              final isSelected = _selectedCategory == category;
+              return ChoiceChip(
+                label: Text(category),
+                selected: isSelected,
+                onSelected: (selected) {
+                  if (selected) {
+                    setState(() {
+                      _selectedCategory = category;
+                      _selectedType = PlacesService.placeCategories[category]?.first;
+                    });
+                    if (_selectedType != null) {
+                      _searchPlaces(_selectedType!);
+                    }
+                  }
+                },
+                selectedColor: AppTheme.primaryColor,
+                backgroundColor: Colors.grey[200],
+                labelStyle: TextStyle(
+                  color: isSelected ? Colors.white : AppTheme.textPrimaryColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              );
+            },
           ),
         ),
-        
-        // Results
-        Expanded(
-          child: _buildResultsList(),
+        SizedBox(
+          height: 48,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            itemCount: types.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final type = types[index];
+              final label = PlacesService.placeTypes[type] ?? type;
+              final isSelected = _selectedType == type;
+              return ChoiceChip(
+                label: Text(label),
+                selected: isSelected,
+                onSelected: (selected) {
+                  if (selected) {
+                    setState(() {
+                      _selectedType = type;
+                    });
+                    _searchPlaces(type);
+                  }
+                },
+                selectedColor: AppTheme.primaryColor,
+                backgroundColor: Colors.grey[200],
+                labelStyle: TextStyle(
+                  color: isSelected ? Colors.white : AppTheme.textPrimaryColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              );
+            },
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildResultsList() {
-    if (_isLoading) {
-      return _buildLoadingState();
-    }
-
-    if (_error != null) {
+  Widget _buildFullScreenMap() {
+    if (_currentPosition == null) {
       return _buildErrorState();
     }
-
-    if (_places.isEmpty && _selectedType != null) {
-      return _buildEmptyState();
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _places.length,
-      itemBuilder: (context, index) {
-        final place = _places[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    return Stack(
+      children: [
+        GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+            zoom: 14,
           ),
-          child: ListTile(
-            leading: Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                _getTypeIcon(_selectedType!),
-                color: AppTheme.primaryColor,
-                size: 24,
-              ),
-            ),
-            title: Text(
-              place.name,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  place.address,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textSecondaryColor,
-                  ),
-                ),
-                if (place.rating != null) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        place.rating!.toStringAsFixed(1),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (place.userRatingsTotal != null) ...[
-                        const SizedBox(width: 4),
-                        Text(
-                          '(${place.userRatingsTotal})',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondaryColor,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ],
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (place.openNow != null) ...[
-                  Icon(
-                    place.openNow! ? Icons.check_circle : Icons.cancel,
-                    color: place.openNow! ? Colors.green : Colors.red,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                const Icon(Icons.arrow_forward_ios, size: 16),
-              ],
-            ),
-            onTap: () => _showPlaceDetails(place),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: 5,
-      itemBuilder: (context, index) {
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Shimmer.fromColors(
-            baseColor: Colors.grey[300]!,
-            highlightColor: Colors.grey[100]!,
-            child: ListTile(
-              leading: Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              title: Container(
-                height: 16,
-                width: double.infinity,
-                color: Colors.white,
-              ),
-              subtitle: Container(
-                height: 12,
-                width: double.infinity,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        );
-      },
+          markers: _markers,
+          onMapCreated: (controller) {
+            _mapController = controller;
+          },
+          myLocationEnabled: true,
+          myLocationButtonEnabled: false,
+        ),
+        if (_isLoading)
+          const Center(child: CircularProgressIndicator()),
+      ],
     );
   }
 
