@@ -349,8 +349,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             routeObserver, // Beğendiğim Haberler için
           ],
           theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: themeService.themeMode,
+          // darkTheme ve themeMode kaldırıldı
           locale: languageService.locale,
           initialRoute: '/splash', // Uygulama her zaman Splash Screen'den başlayacak
           routes: {

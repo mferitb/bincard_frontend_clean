@@ -259,15 +259,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       child: Column(
         children: [
-          _buildSwitchItem(
-            icon: Icons.dark_mode,
-            title: 'Karanlık Mod',
-            value: themeService.isDarkMode,
-            onChanged: (value) {
-              themeService.setDarkMode(value);
-            },
-          ),
-          const Divider(),
+          // Karanlık mod switch'i kaldırıldı
+          // Sadece yazı boyutu ayarı bırakıldı
           _buildSliderItem(
             icon: Icons.text_fields,
             title: 'Yazı Boyutu',

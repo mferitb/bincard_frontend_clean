@@ -178,39 +178,7 @@ class AppTheme {
   // Kart renkleri
   static const Color cardColor = Color(0xFFFFFFFF); // Beyaz
 
-  // Temaları oluştur
-  static final ThemeData darkTheme = ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.dark,
-    primaryColor: primaryColor,
-    colorScheme: ColorScheme.dark(
-      primary: primaryColor,
-      secondary: accentColor,
-      tertiary: accentColor,
-      error: AppTheme.errorColor,
-      surface: const Color(0xFF2D3748),
-    ),
-    scaffoldBackgroundColor: const Color(0xFF1A202C),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFF2D3748),
-      foregroundColor: textLightColor,
-      elevation: 0,
-      centerTitle: true,
-    ),
-    textTheme: GoogleFonts.poppinsTextTheme().copyWith(
-      displayLarge: GoogleFonts.poppins(
-        color: textLightColor,
-        fontSize: 24,
-        fontWeight: FontWeight.bold,
-      ),
-      displayMedium: GoogleFonts.poppins(
-        color: textLightColor,
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-      ),
-      bodyLarge: GoogleFonts.poppins(color: textLightColor, fontSize: 16),
-    ),
-  );
+  // darkTheme ve karanlık mod ile ilgili kodlar kaldırıldı
 }
 
 // Renk tonu koyulaştırma uzantısı
