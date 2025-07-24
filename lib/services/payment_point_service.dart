@@ -6,23 +6,21 @@ import '../constants/api_constants.dart';
 class PaymentPointService {
   static final String baseUrl = ApiConstants.baseUrl;
 
-  Future<List<PaymentPoint>> getAllPaymentPoints() async {
-    final response = await http.get(Uri.parse(baseUrl + ApiConstants.paymentPointBase));
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      final List content = data['data']['content'];
-      return content.map((e) => PaymentPoint.fromJson(e)).toList();
-    } else {
-      throw Exception('Ödeme noktaları alınamadı');
-    }
-  }
+  // getAllPaymentPoints fonksiyonu kaldırıldı. Artık paymentPointBase endpointi kullanılmıyor.
 
   Future<PaymentPoint> getPaymentPointById(int id) async {
     final response = await http.get(Uri.parse(baseUrl + ApiConstants.paymentPointById(id)));
+    print('getPaymentPointById yanıtı: ${response.body}');
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      return PaymentPoint.fromJson(data['data']);
+      if (data != null && data['data'] != null) {
+        return PaymentPoint.fromJson(data['data']);
+      } else {
+        print('getPaymentPointById: data veya data["data"] null!');
+        throw Exception('Ödeme noktası verisi eksik veya hatalı');
+      }
     } else {
+      print('getPaymentPointById: HTTP hata ${response.statusCode}');
       throw Exception('Ödeme noktası alınamadı');
     }
   }
@@ -40,11 +38,18 @@ class PaymentPointService {
       headers: {'Content-Type': 'application/json'},
       body: '{}', // Boş body
     );
+    print('searchPaymentPoints yanıtı: ${response.body}');
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      final List content = data['data']['content'];
-      return content.map((e) => PaymentPoint.fromJson(e)).toList();
+      if (data != null && data['data'] != null && data['data']['content'] != null) {
+        final List content = data['data']['content'];
+        return content.map((e) => PaymentPoint.fromJson(e)).toList();
+      } else {
+        print('searchPaymentPoints: data, data["data"] veya data["data"]["content"] null!');
+        return [];
+      }
     } else {
+      print('searchPaymentPoints: HTTP hata ${response.statusCode}');
       throw Exception('Ödeme noktası araması başarısız');
     }
   }
@@ -59,11 +64,18 @@ class PaymentPointService {
     final url = baseUrl + ApiConstants.paymentPointNearby +
         '?latitude=$latitude&longitude=$longitude&radiusKm=$radiusKm&page=$page&size=$size&sort=distance,asc';
     final response = await http.get(Uri.parse(url));
+    print('getNearbyPaymentPoints yanıtı: ${response.body}');
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      final List content = data['data']['content'];
-      return content.map((e) => PaymentPoint.fromJson(e)).toList();
+      if (data != null && data['data'] != null && data['data']['content'] != null) {
+        final List content = data['data']['content'];
+        return content.map((e) => PaymentPoint.fromJson(e)).toList();
+      } else {
+        print('getNearbyPaymentPoints: data, data["data"] veya data["data"]["content"] null!');
+        return [];
+      }
     } else {
+      print('getNearbyPaymentPoints: HTTP hata ${response.statusCode}');
       throw Exception('Yakındaki ödeme noktaları alınamadı');
     }
   }

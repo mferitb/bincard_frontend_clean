@@ -37,8 +37,14 @@ class StationService {
       print('API ham yanıtı:');
       print(response.data);
       if (response.statusCode == 200 && response.data['success'] == true) {
-        final List<dynamic> list = response.data['data']['content'];
-        return list.map((e) => StationModel.fromJson(e)).toList();
+        final data = response.data['data'];
+        if (data != null && data['content'] != null) {
+          final List<dynamic> list = data['content'];
+          return list.map((e) => StationModel.fromJson(e)).toList();
+        } else {
+          print('API yanıtında data veya content null!');
+          return [];
+        }
       }
       return [];
     } catch (e) {

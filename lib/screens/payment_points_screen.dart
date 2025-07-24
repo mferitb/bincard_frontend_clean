@@ -62,7 +62,14 @@ class _PaymentPointsScreenState extends State<PaymentPointsScreen> {
   @override
   void initState() {
     super.initState();
-    _paymentPointsFuture = PaymentPointService().getAllPaymentPoints();
+    // Varsayılan olarak yakındaki ödeme noktalarını getir
+    _paymentPointsFuture = PaymentPointService().getNearbyPaymentPoints(
+      latitude: 0.0, // Varsayılan değer, konum alınca güncellenir
+      longitude: 0.0,
+      radiusKm: _radiusKm,
+      page: 0,
+      size: 10,
+    );
     _setInitialUserLocation();
   }
 
@@ -113,7 +120,13 @@ class _PaymentPointsScreenState extends State<PaymentPointsScreen> {
           page: 0,
         );
       } else {
-        _paymentPointsFuture = PaymentPointService().getAllPaymentPoints();
+        _paymentPointsFuture = PaymentPointService().getNearbyPaymentPoints(
+          latitude: pos.latitude,
+          longitude: pos.longitude,
+          radiusKm: _radiusKm,
+          page: 0,
+          size: 10,
+        );
       }
     });
   }
