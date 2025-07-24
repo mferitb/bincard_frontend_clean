@@ -1,7 +1,10 @@
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'map_screen.dart';
 import 'bus_tracking_screen.dart';
+import '../services/station_service.dart';
+import '../models/station_model.dart';
 
 class BusRoutesScreen extends StatefulWidget {
   const BusRoutesScreen({super.key});
@@ -15,59 +18,66 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
   String _searchQuery = '';
   final List<String> _favoriteRoutes = [];
 
-  // Örnek otobüs seferleri listesi
-  final List<Map<String, dynamic>> _routes = [
-    {
-      'number': '11A',
-      'name': 'Merkez - Üniversite',
-      'stops': ['Merkez', 'Belediye', 'Adliye', 'Hastane', 'Üniversite'],
-      'startTime': '06:00',
-      'endTime': '23:00',
-      'frequency': '15 dk',
-    },
-    {
-      'number': '22B',
-      'name': 'Merkez - Sanayi',
-      'stops': ['Merkez', 'AVM', 'Stadyum', 'Sanayi'],
-      'startTime': '06:30',
-      'endTime': '22:00',
-      'frequency': '20 dk',
-    },
-    {
-      'number': '33C',
-      'name': 'Merkez - Sahil',
-      'stops': ['Merkez', 'Park', 'Müze', 'Sahil'],
-      'startTime': '07:00',
-      'endTime': '23:30',
-      'frequency': '30 dk',
-    },
-    {
-      'number': '44D',
-      'name': 'Terminal - Merkez',
-      'stops': ['Terminal', 'Çarşı', 'Pazar', 'Merkez'],
-      'startTime': '05:30',
-      'endTime': '22:30',
-      'frequency': '10 dk',
-    },
-    {
-      'number': '55E',
-      'name': 'Merkez - Havalimanı',
-      'stops': ['Merkez', 'Bulvar', 'Fuar', 'Havalimanı'],
-      'startTime': '04:00',
-      'endTime': '00:00',
-      'frequency': '45 dk',
-    },
-  ];
+  List<StationModel> _stations = [];
+  bool _isLoading = true;
+  bool _hasError = false;
+  @override
+  void initState() {
+    super.initState();
+    _fetchNearbyStations();
+  }
 
-  List<Map<String, dynamic>> get _filteredRoutes {
-    if (_searchQuery.isEmpty) {
-      return _routes;
+  Future<void> _fetchNearbyStations() async {
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() {
+            _hasError = true;
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          _hasError = true;
+          _isLoading = false;
+        });
+        return;
+      }
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      double latitude = position.latitude;
+      double longitude = position.longitude;
+      final stations = await StationService().getNearbyStations(latitude: latitude, longitude: longitude);
+      print('API yanıtı ile gelen duraklar:');
+      for (var s in stations) {
+        print('Durak: ${s.id}, ${s.name}, (${s.latitude}, ${s.longitude})');
+      }
+      setState(() {
+        _stations = stations;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Duraklar çekilirken hata oluştu: $e');
+      setState(() {
+        _hasError = true;
+        _isLoading = false;
+      });
     }
-    return _routes.where((route) {
-      return route['number'].toLowerCase().contains(
-            _searchQuery.toLowerCase(),
-          ) ||
-          route['name'].toLowerCase().contains(_searchQuery.toLowerCase());
+  }
+
+  List<StationModel> get _filteredStations {
+    if (_searchQuery.isEmpty) {
+      return _stations;
+    }
+    return _stations.where((station) {
+      return station.name.toLowerCase().contains(_searchQuery.toLowerCase());
     }).toList();
   }
 
@@ -114,10 +124,13 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
         children: [
           _buildSearchBar(),
           Expanded(
-            child:
-                _filteredRoutes.isEmpty
-                    ? _buildNoResults()
-                    : _buildRoutesList(),
+            child: _isLoading
+                ? Center(child: CircularProgressIndicator())
+                : _hasError
+                    ? Center(child: Text('Bir hata oluştu'))
+                    : _filteredStations.isEmpty
+                        ? _buildNoStops()
+                        : _buildStationsList(),
           ),
         ],
       ),
@@ -180,130 +193,117 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
         ],
       ),
     );
+
   }
 
-  Widget _buildRoutesList() {
+  Widget _buildNoStops() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.directions_bus,
+            size: 80,
+            color: AppTheme.textSecondaryColor.withOpacity(0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Yakında durak yok',
+            style: TextStyle(
+              fontSize: 18,
+              color: AppTheme.textSecondaryColor,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStationsList() {
+    print('Ekrana basılan duraklar:');
+    for (var s in _filteredStations) {
+      print('Durak: ${s.id}, ${s.name}, (${s.latitude}, ${s.longitude})');
+    }
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _filteredRoutes.length,
+      itemCount: _filteredStations.length,
       itemBuilder: (context, index) {
-        final route = _filteredRoutes[index];
-        final isFavorite = _favoriteRoutes.contains(route['number']);
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ExpansionTile(
-            leading: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Text(
-                  route['number'],
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
-                  ),
+        final station = _filteredStations[index];
+        final isFavorite = _favoriteRoutes.contains(station.id.toString());
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MapScreen(
+                  locationType: 'bus',
+                  initialLocation: {
+                    'lat': station.latitude,
+                    'lng': station.longitude,
+                  },
                 ),
               ),
+            );
+          },
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-            title: Text(
-              route['name'],
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              'İlk sefer: ${route['startTime']} - Son sefer: ${route['endTime']}',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppTheme.textSecondaryColor,
-              ),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    isFavorite ? Icons.star : Icons.star_border,
-                    color:
-                        isFavorite
-                            ? AppTheme.accentColor
-                            : AppTheme.textSecondaryColor,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        station.name.substring(0, 2),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                    ),
                   ),
-                  onPressed: () => _toggleFavorite(route['number']),
-                ),
-                const Icon(Icons.keyboard_arrow_down),
-              ],
-            ),
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionTitle('Duraklar'),
-                    const SizedBox(height: 8),
-                    _buildStopsList(route['stops']),
-                    const SizedBox(height: 16),
-                    _buildInfoRow('Sefer Sıklığı', route['frequency']),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildActionButton(
-                          icon: Icons.map,
-                          label: 'Haritada Gör',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => MapScreen(
-                                      locationType: 'bus',
-                                      initialLocation: {
-                                        'lat': 41.0082,
-                                        'lng': 28.9784,
-                                      },
-                                    ),
-                              ),
-                            );
-                          },
+                        Text(
+                          station.name,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        _buildActionButton(
-                          icon: Icons.access_time,
-                          label: 'Tüm Saatler',
-                          onTap: () {
-                            _showTimeTable(context, route);
-                          },
-                        ),
-                        _buildActionButton(
-                          icon: Icons.location_on,
-                          label: 'Otobüs Takip',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => BusTrackingScreen(
-                                      busNumber: route['number'],
-                                    ),
-                              ),
-                            );
-                          },
+                        const SizedBox(height: 4),
+                        Text(
+                          '${station.city}, ${station.district}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondaryColor,
+                          ),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      isFavorite ? Icons.star : Icons.star_border,
+                      color: isFavorite ? AppTheme.accentColor : AppTheme.textSecondaryColor,
+                    ),
+                    onPressed: () => _toggleFavorite(station.id.toString()),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
@@ -479,18 +479,11 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.swap_vert, color: AppTheme.infoColor),
-                title: const Text('Hat Numarasına Göre Sırala'),
+                title: const Text('İsim (Hat) Numarasına Göre Sırala'),
                 onTap: () {
                   Navigator.pop(context);
                   setState(() {
-                    final sortedRoutes = List<Map<String, dynamic>>.from(
-                      _routes,
-                    );
-                    sortedRoutes.sort(
-                      (a, b) => a['number'].compareTo(b['number']),
-                    );
-                    _routes.clear();
-                    _routes.addAll(sortedRoutes);
+                    _stations.sort((a, b) => a.name.compareTo(b.name));
                   });
                 },
               ),

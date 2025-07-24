@@ -1182,7 +1182,7 @@ class _HomeScreenState extends State<HomeScreen>
     final quickActions = [
       {
         'icon': Icons.directions_bus,
-        'label': 'Seferler',
+        'label': 'Hatlar',
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const BusRoutesScreen()),

@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../constants/api_constants.dart';
+import '../services/station_service.dart';
+import '../models/station_model.dart';
+import 'package:geolocator/geolocator.dart';
 
 class MapScreen extends StatefulWidget {
   final Map<String, dynamic>? initialLocation;
@@ -155,9 +160,18 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  GoogleMapController? _mapController;
+  LatLng? _currentLatLng;
+  bool _isLoading = false;
+  String? _error;
+  List<StationModel> _stations = [];
+
   @override
   void initState() {
     super.initState();
+    if (widget.locationType == 'bus') {
+      _fetchNearbyStations();
+    }
     // Eğer belirli bir konum tipi ile açıldıysa, o filtreyi seç
     if (widget.locationType != null) {
       final matchingFilter = _filterOptions.firstWhere(
@@ -166,6 +180,55 @@ class _MapScreenState extends State<MapScreen> {
       );
       _selectedFilter = matchingFilter['name'];
     }
+  }
+
+  Future<void> _fetchNearbyStations() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      Position pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      _currentLatLng = LatLng(pos.latitude, pos.longitude);
+      final stations = await StationService().getNearbyStations(latitude: pos.latitude, longitude: pos.longitude);
+      setState(() {
+        _stations = stations;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Duraklar yüklenemedi: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  LatLng get _initialLatLng {
+    if (widget.initialLocation != null) {
+      return LatLng(
+        widget.initialLocation!['lat'] ?? 41.0082,
+        widget.initialLocation!['lng'] ?? 28.9784,
+      );
+    }
+    if (_currentLatLng != null) {
+      return _currentLatLng!;
+    }
+    return const LatLng(41.0082, 28.9784);
+  }
+
+  Set<Marker> get _mapMarkers {
+    if (widget.locationType == 'bus' && _stations.isNotEmpty) {
+      return _stations.map((station) {
+        return Marker(
+          markerId: MarkerId(station.id.toString()),
+          position: LatLng(station.latitude, station.longitude),
+          infoWindow: InfoWindow(title: station.name),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+        );
+      }).toSet();
+    }
+    // ... eski örnek markerlar (isteğe bağlı, bus değilse)
+    return {};
   }
 
   @override
@@ -227,46 +290,23 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Widget _buildMapPlaceholder() {
-    // Bu bir yer tutucu - gerçek uygulamada Google Maps veya başka bir harita kütüphanesi kullanılacak
-    return Container(
-      color: Colors.grey[200],
-      width: double.infinity,
-      height: double.infinity,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.map, size: 100, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'Harita Görünümü',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Filtre: $_selectedFilter',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Gösterilen nokta sayısı: ${_filteredPoints.length}',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-            if (widget.initialLocation != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Text(
-                  'Gösterilen konum: ${widget.initialLocation!['lat']}, ${widget.initialLocation!['lng']}',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
-              ),
-          ],
-        ),
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return Center(child: Text(_error!));
+    }
+    return GoogleMap(
+      initialCameraPosition: CameraPosition(
+        target: _initialLatLng,
+        zoom: 13,
       ),
+      markers: _mapMarkers,
+      onMapCreated: (controller) {
+        _mapController = controller;
+      },
+      myLocationEnabled: true,
+      myLocationButtonEnabled: true,
     );
   }
 
@@ -356,17 +396,83 @@ class _MapScreenState extends State<MapScreen> {
           const SizedBox(height: 8),
           SizedBox(
             height: 120,
-            child:
-                _filteredPoints.isEmpty
-                    ? _buildEmptyState()
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _stations.isEmpty
+                    ? Center(child: Text('Yakında nokta yok'))
                     : ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _filteredPoints.length,
-                      itemBuilder: (context, index) {
-                        final point = _filteredPoints[index];
-                        return _buildPointCard(point);
-                      },
-                    ),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _stations.length,
+                        itemBuilder: (context, index) {
+                          final station = _stations[index];
+                          return Card(
+                            margin: const EdgeInsets.only(right: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            child: InkWell(
+                              onTap: () {
+                                // Detay gösterimi veya haritada merkeze alma eklenebilir
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                width: 150,
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.directions_bus, color: AppTheme.primaryColor, size: 20),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            station.active ? 'Açık' : 'Kapalı',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: station.active ? AppTheme.successColor : AppTheme.errorColor,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      station.name,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const Spacer(),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.location_on,
+                                          color: AppTheme.primaryColor,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            station.district,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: AppTheme.textSecondaryColor,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
