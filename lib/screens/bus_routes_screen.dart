@@ -161,10 +161,20 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
             border: InputBorder.none,
             contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
-          onChanged: (value) {
+          onChanged: (value) async {
             setState(() {
               _searchQuery = value;
             });
+            if (value.isNotEmpty) {
+              print('Arama API çağrılıyor: $value');
+              final results = await StationService().getStationSearch(name: value);
+              print('Arama sonuçları: ${results.length}');
+              setState(() {
+                _stations = results;
+              });
+            } else {
+              _fetchNearbyStations();
+            }
           },
         ),
       ),
