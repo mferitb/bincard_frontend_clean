@@ -10,6 +10,9 @@ import 'terms_of_service_screen.dart';
 import 'privacy_policy_screen.dart';
 import '../services/biometric_service.dart';
 import 'liked_news_screen.dart';
+import '../models/station_model.dart';
+import '../services/station_service.dart';
+import 'favorite_stations_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -209,6 +212,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // HAREKETLERİN BÖLÜMÜ
               _buildSectionTitle('Hareketlerin'),
               _buildLikedNewsSection(context),
+              const SizedBox(height: 12),
+              _buildFavoriteStationsButton(context),
               const SizedBox(height: 24),
               _buildSectionTitle('Bildirim Ayarları'),
               _buildNotificationSettings(),
@@ -758,6 +763,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => LikedNewsScreen()),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFavoriteStationsButton(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.star, color: Colors.amber, size: 24),
+        ),
+        title: const Text(
+          'Favori Durakların',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+        trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => FavoriteStationsScreen()),
           );
         },
       ),

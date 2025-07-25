@@ -2,13 +2,14 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../constants/api_constants.dart';
 import '../models/station_model.dart';
+import 'api_service.dart';
 
 class StationService {
   Future<List<String>> getStationKeywords({
     required String query,
   }) async {
     try {
-      final response = await _dio.get(
+      final response = await ApiService().dio.get(
         '/station/keywords',
         queryParameters: {
           'query': query,
@@ -35,7 +36,7 @@ class StationService {
     int size = 10,
   }) async {
     try {
-      final response = await _dio.get(
+      final response = await ApiService().dio.get(
         '/station/search',
         queryParameters: {
           'name': name,
@@ -61,11 +62,11 @@ class StationService {
       return [];
     }
   }
-  final Dio _dio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
+  // final Dio _dio = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
 
   Future<StationModel?> getStationById(int id) async {
     try {
-      final response = await _dio.get('/v1/api/station/$id');
+      final response = await ApiService().dio.get('/station/$id');
       if (response.statusCode == 200 && response.data['success'] == true) {
         return StationModel.fromJson(response.data['data']);
       }
@@ -82,7 +83,7 @@ class StationService {
     int size = 10,
   }) async {
     try {
-      final response = await _dio.get(
+      final response = await ApiService().dio.get(
         '/station/nearby',
         queryParameters: {
           'latitude': latitude,
@@ -106,6 +107,40 @@ class StationService {
       return [];
     } catch (e) {
       return [];
+    }
+  }
+
+  Future<List<StationModel>> getFavoriteStations() async {
+    try {
+      final response = await ApiService().dio.get('/station/favorite');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> list = response.data['data'];
+        return list.map((e) => StationModel.fromJson(e)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('Favori duraklar alınırken hata: $e');
+      return [];
+    }
+  }
+
+  Future<bool> addFavoriteStation(int stationId) async {
+    try {
+      final response = await ApiService().dio.post('/station/add-favorite', queryParameters: {'stationId': stationId});
+      return response.statusCode == 200 && response.data['success'] == true;
+    } catch (e) {
+      print('Favori durağa eklerken hata: $e');
+      return false;
+    }
+  }
+
+  Future<bool> removeFavoriteStation(int stationId) async {
+    try {
+      final response = await ApiService().dio.delete('/station/remove-favorite', queryParameters: {'stationId': stationId});
+      return response.statusCode == 200 && response.data['success'] == true;
+    } catch (e) {
+      print('Favori duraktan çıkarırken hata: $e');
+      return false;
     }
   }
 } 

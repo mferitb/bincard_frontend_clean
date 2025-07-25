@@ -9,6 +9,7 @@ class StationModel {
   final String district;
   final String street;
   final String postalCode;
+  final bool? isFavorite;
 
   StationModel({
     required this.id,
@@ -21,6 +22,7 @@ class StationModel {
     required this.district,
     required this.street,
     required this.postalCode,
+    this.isFavorite,
   });
 
   factory StationModel.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,7 @@ class StationModel {
       district: json['district'],
       street: json['street'],
       postalCode: json['postalCode'],
+      isFavorite: json['isFavorite'],
     );
   }
 
@@ -50,6 +53,7 @@ class StationModel {
       'district': district,
       'street': street,
       'postalCode': postalCode,
+      if (isFavorite != null) 'isFavorite': isFavorite,
     };
   }
 } 

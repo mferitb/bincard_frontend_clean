@@ -16,7 +16,7 @@ class BusRoutesScreen extends StatefulWidget {
 class _BusRoutesScreenState extends State<BusRoutesScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  final List<String> _favoriteRoutes = [];
+  List<int> _favoriteStationIds = [];
 
   List<StationModel> _stations = [];
   bool _isLoading = true;
@@ -25,6 +25,7 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
   void initState() {
     super.initState();
     _fetchNearbyStations();
+    _fetchFavoriteStations();
   }
 
   Future<void> _fetchNearbyStations() async {
@@ -72,6 +73,35 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
     }
   }
 
+  Future<void> _fetchFavoriteStations() async {
+    try {
+      final favorites = await StationService().getFavoriteStations();
+      setState(() {
+        _favoriteStationIds = favorites.map((e) => e.id).toList();
+      });
+    } catch (e) {
+      print('Favori duraklar alınamadı: $e');
+    }
+  }
+
+  Future<void> _toggleFavorite(int stationId) async {
+    if (_favoriteStationIds.contains(stationId)) {
+      final success = await StationService().removeFavoriteStation(stationId);
+      if (success) {
+        setState(() {
+          _favoriteStationIds.remove(stationId);
+        });
+      }
+    } else {
+      final success = await StationService().addFavoriteStation(stationId);
+      if (success) {
+        setState(() {
+          _favoriteStationIds.add(stationId);
+        });
+      }
+    }
+  }
+
   List<StationModel> get _filteredStations {
     if (_searchQuery.isEmpty) {
       return _stations;
@@ -79,16 +109,6 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
     return _stations.where((station) {
       return station.name.toLowerCase().contains(_searchQuery.toLowerCase());
     }).toList();
-  }
-
-  void _toggleFavorite(String routeNumber) {
-    setState(() {
-      if (_favoriteRoutes.contains(routeNumber)) {
-        _favoriteRoutes.remove(routeNumber);
-      } else {
-        _favoriteRoutes.add(routeNumber);
-      }
-    });
   }
 
   @override
@@ -240,7 +260,7 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
       itemCount: _filteredStations.length,
       itemBuilder: (context, index) {
         final station = _filteredStations[index];
-        final isFavorite = _favoriteRoutes.contains(station.id.toString());
+        final isFavorite = _favoriteStationIds.contains(station.id);
         return GestureDetector(
           onTap: () {
             Navigator.push(
@@ -309,7 +329,7 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
                       isFavorite ? Icons.star : Icons.star_border,
                       color: isFavorite ? AppTheme.accentColor : AppTheme.textSecondaryColor,
                     ),
-                    onPressed: () => _toggleFavorite(station.id.toString()),
+                    onPressed: () => _toggleFavorite(station.id),
                   ),
                 ],
               ),
@@ -464,7 +484,7 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
                   setState(() {
                     _searchQuery = '';
                     _searchController.clear();
-                    if (_favoriteRoutes.isNotEmpty) {
+                    if (_favoriteStationIds.isNotEmpty) {
                       _searchQuery = '_favorites_';
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
