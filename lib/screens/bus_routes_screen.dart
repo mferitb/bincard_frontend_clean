@@ -21,11 +21,39 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
   List<StationModel> _stations = [];
   bool _isLoading = true;
   bool _hasError = false;
+
+  // --- Eklenenler: Anahtar kelime önerileri için ---
+  List<String> _keywordSuggestions = [];
+  bool _isKeywordLoading = false;
+  
   @override
   void initState() {
     super.initState();
     _fetchNearbyStations();
     _fetchFavoriteStations();
+    // --- Arama kutusu değişimini dinle ---
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() async {
+    final value = _searchController.text;
+    setState(() {
+      _searchQuery = value;
+    });
+    if (value.isNotEmpty) {
+      setState(() {
+        _isKeywordLoading = true;
+      });
+      final suggestions = await StationService().getStationKeywords(query: value);
+      setState(() {
+        _keywordSuggestions = suggestions.take(3).toList();
+        _isKeywordLoading = false;
+      });
+    } else {
+      setState(() {
+        _keywordSuggestions = [];
+      });
+    }
   }
 
   Future<void> _fetchNearbyStations() async {
@@ -113,6 +141,7 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -165,39 +194,53 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
   }
 
   Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: AppTheme.primaryColor,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: TextField(
-          controller: _searchController,
-          decoration: const InputDecoration(
-            hintText: 'Hat numarası veya güzergah ara...',
-            prefixIcon: Icon(Icons.search),
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: AppTheme.primaryColor,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                hintText: 'Hat numarası veya güzergah ara...',
+                prefixIcon: Icon(Icons.search),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              // onChanged kaldırıldı, dinleyici ile yönetiliyor
+            ),
           ),
-          onChanged: (value) async {
-            setState(() {
-              _searchQuery = value;
-            });
-            if (value.isNotEmpty) {
-              print('Arama API çağrılıyor: $value');
-              final results = await StationService().getStationSearch(name: value);
-              print('Arama sonuçları: ${results.length}');
-              setState(() {
-                _stations = results;
-              });
-            } else {
-              _fetchNearbyStations();
-            }
-          },
         ),
-      ),
+        // --- Anahtar kelime önerileri kutusu ---
+        if (_searchController.text.isNotEmpty)
+          Container(
+            color: Colors.white,
+            child: _isKeywordLoading
+                ? const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: LinearProgressIndicator(),
+                  )
+                : Column(
+                    children: _keywordSuggestions.map((suggestion) => ListTile(
+                          leading: const Icon(Icons.search),
+                          title: Text(suggestion),
+                          onTap: () {
+                            _searchController.text = suggestion;
+                            _searchController.selection = TextSelection.fromPosition(
+                              TextPosition(offset: suggestion.length),
+                            );
+                            // İstersen burada arama da tetiklenebilir:
+                            // _onSearchChanged();
+                          },
+                        )).toList(),
+                  ),
+          ),
+      ],
     );
   }
 
