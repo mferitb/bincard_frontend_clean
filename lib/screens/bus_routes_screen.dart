@@ -1001,46 +1001,130 @@ class RouteDetailScreen extends StatelessWidget {
             return const Center(child: Text('Rota bulunamadı.'));
           }
           final route = snapshot.data!;
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ListView(
-              children: [
-                Text(route.name, style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 8),
-                Text('Kod: ${route.code}'),
-                Text('Tip: ${route.routeType}'),
-                Row(
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Row(
                   children: [
-                    const Text('Renk: '),
-                    Container(width: 24, height: 24, color: Color(_hexToColor(route.color)), margin: const EdgeInsets.only(left: 8)),
+                    Container(
+                      width: 12,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: Color(_hexToColor(route.color)),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          bottomLeft: Radius.circular(16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Text(
+                          (route.code.length >= 2 ? route.code.substring(0, 2) : route.code),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(route.name, style: Theme.of(context).textTheme.titleLarge),
+                          const SizedBox(height: 6),
+                          Text('${route.startStation.name} → ${route.endStation.name}',
+                            style: TextStyle(fontSize: 14, color: AppTheme.textSecondaryColor)),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(Icons.timer, size: 16, color: AppTheme.textSecondaryColor),
+                              const SizedBox(width: 4),
+                              Text('${route.estimatedDurationMinutes} dk', style: TextStyle(fontSize: 13, color: AppTheme.textSecondaryColor)),
+                              const SizedBox(width: 12),
+                              Icon(Icons.straighten, size: 16, color: AppTheme.textSecondaryColor),
+                              const SizedBox(width: 4),
+                              Text('${route.totalDistanceKm.toStringAsFixed(2)} km', style: TextStyle(fontSize: 13, color: AppTheme.textSecondaryColor)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text('Başlangıç: ${route.startStation?.name}'),
-                Text('Bitiş: ${route.endStation?.name}'),
-                const SizedBox(height: 8),
-                Text('Tahmini Süre: ${route.estimatedDurationMinutes} dakika'),
-                Text('Toplam Mesafe: ${route.totalDistanceKm} km'),
-                const SizedBox(height: 8),
-                Text('Hafta İçi Saatler: ${route.schedule.weekdayHours.join(', ')}'),
-                Text('Hafta Sonu Saatler: ${route.schedule.weekendHours.join(', ')}'),
-                const SizedBox(height: 16),
-                Text('Yönler:', style: Theme.of(context).textTheme.titleMedium),
-                ...route.directions.map((dir) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(dir.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ...dir.stationNodes.map((node) => Padding(
-                      padding: const EdgeInsets.only(left: 16.0, top: 2, bottom: 2),
-                      child: Text('${node.fromStation.name} → ${node.toStation.name}'),
-                    )),
-                    const SizedBox(height: 8),
-                  ],
-                )),
-              ],
-            ),
+              ),
+              const SizedBox(height: 20),
+              _SectionTitle('Sefer Saatleri'),
+              Card(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Hafta İçi: ' + (route.schedule.weekdayHours.isNotEmpty ? route.schedule.weekdayHours.join(', ') : '-')),
+                      const SizedBox(height: 4),
+                      Text('Hafta Sonu: ' + (route.schedule.weekendHours.isNotEmpty ? route.schedule.weekendHours.join(', ') : '-')),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              _SectionTitle('Yönler'),
+              ...route.directions.map((dir) => Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(dir.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      ...dir.stationNodes.map((node) => Padding(
+                        padding: const EdgeInsets.only(left: 8.0, top: 2, bottom: 2),
+                        child: Text('${node.fromStation.name} → ${node.toStation.name}', style: const TextStyle(fontSize: 13)),
+                      )),
+                    ],
+                  ),
+                ),
+              )),
+            ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  const _SectionTitle(this.title, {Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.bold,
+          color: AppTheme.textPrimaryColor,
+        ),
       ),
     );
   }
