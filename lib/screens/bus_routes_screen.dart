@@ -5,6 +5,8 @@ import 'map_screen.dart';
 import 'bus_tracking_screen.dart';
 import '../services/station_service.dart';
 import '../models/station_model.dart';
+import '../models/route_model.dart';
+import '../services/routes_service.dart';
 
 class BusRoutesScreen extends StatefulWidget {
   const BusRoutesScreen({super.key});
@@ -219,8 +221,8 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> with SingleTickerProv
               ),
             ],
           ),
-          // Rotalar sekmesi: örnek içerik
-          Center(child: Text('Rotalar sekmesi (örnek içerik)')),
+          // Rotalar sekmesi: API'den rota verisi çekiliyor
+          _RouteTab(),
         ],
       ),
     );
@@ -857,4 +859,197 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> with SingleTickerProv
     return now.hour == hour &&
         (now.minute >= minute && now.minute < minute + 15);
   }
+}
+
+class _RouteTab extends StatelessWidget {
+  // Kaç id denenecek (örnek: 1-100 arası)
+  final int maxId = 100;
+
+  Future<List<RouteModel>> fetchAllRoutes() async {
+    List<RouteModel> routes = [];
+    for (var id = 1; id <= maxId; id++) {
+      try {
+        final route = await RoutesService().getRouteById(id);
+        routes.add(route);
+      } catch (e) {
+        // 404 veya başka hata olursa atla
+      }
+    }
+    return routes;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<RouteModel>>(
+      future: fetchAllRoutes(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Rotalar yüklenemedi: \n${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('Rota bulunamadı.'));
+        }
+        final routes = snapshot.data!;
+        return ListView.builder(
+          itemCount: routes.length,
+          padding: const EdgeInsets.all(16),
+          itemBuilder: (context, index) {
+            final route = routes[index];
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RouteDetailScreen(routeId: route.id),
+                  ),
+                );
+              },
+              child: Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: Color(_hexToColor(route.color)),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(12),
+                          bottomLeft: Radius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text(
+                          (route.code.length >= 2 ? route.code.substring(0, 2) : route.code),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            route.name,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${route.startStation.name} → ${route.endStation.name}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondaryColor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Süre: ${route.estimatedDurationMinutes} dk',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class RouteDetailScreen extends StatelessWidget {
+  final int routeId;
+  const RouteDetailScreen({Key? key, required this.routeId}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Rota Detayı')),
+      body: FutureBuilder<RouteModel>(
+        future: RoutesService().getRouteById(routeId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Rota yüklenemedi: \n${snapshot.error}'));
+          } else if (!snapshot.hasData) {
+            return const Center(child: Text('Rota bulunamadı.'));
+          }
+          final route = snapshot.data!;
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ListView(
+              children: [
+                Text(route.name, style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                Text('Kod: ${route.code}'),
+                Text('Tip: ${route.routeType}'),
+                Row(
+                  children: [
+                    const Text('Renk: '),
+                    Container(width: 24, height: 24, color: Color(_hexToColor(route.color)), margin: const EdgeInsets.only(left: 8)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text('Başlangıç: ${route.startStation?.name}'),
+                Text('Bitiş: ${route.endStation?.name}'),
+                const SizedBox(height: 8),
+                Text('Tahmini Süre: ${route.estimatedDurationMinutes} dakika'),
+                Text('Toplam Mesafe: ${route.totalDistanceKm} km'),
+                const SizedBox(height: 8),
+                Text('Hafta İçi Saatler: ${route.schedule.weekdayHours.join(', ')}'),
+                Text('Hafta Sonu Saatler: ${route.schedule.weekendHours.join(', ')}'),
+                const SizedBox(height: 16),
+                Text('Yönler:', style: Theme.of(context).textTheme.titleMedium),
+                ...route.directions.map((dir) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(dir.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ...dir.stationNodes.map((node) => Padding(
+                      padding: const EdgeInsets.only(left: 16.0, top: 2, bottom: 2),
+                      child: Text('${node.fromStation.name} → ${node.toStation.name}'),
+                    )),
+                    const SizedBox(height: 8),
+                  ],
+                )),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+int _hexToColor(String hex) {
+  hex = hex.replaceAll('#', '');
+  if (hex.length == 6) {
+    hex = 'FF' + hex;
+  }
+  return int.parse(hex, radix: 16);
 }
