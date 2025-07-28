@@ -13,7 +13,7 @@ class BusRoutesScreen extends StatefulWidget {
   State<BusRoutesScreen> createState() => _BusRoutesScreenState();
 }
 
-class _BusRoutesScreenState extends State<BusRoutesScreen> {
+class _BusRoutesScreenState extends State<BusRoutesScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   List<int> _favoriteStationIds = [];
@@ -25,13 +25,15 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
   // --- Eklenenler: Anahtar kelime önerileri için ---
   List<String> _keywordSuggestions = [];
   bool _isKeywordLoading = false;
-  
+
+  TabController? _tabController;
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _fetchNearbyStations();
     _fetchFavoriteStations();
-    // --- Arama kutusu değişimini dinle ---
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -143,16 +145,20 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_tabController == null) {
+      return const SizedBox.shrink();
+    }
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         backgroundColor: AppTheme.primaryColor,
-        title: const Text('Otobüs Seferleri', style: TextStyle(color: Colors.white)),
+        title: const Text('Hatlar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
@@ -168,27 +174,54 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
             },
           ),
         ],
-      ),
-      body: Column(
-        children: [
-          _buildSearchBar(),
-          Expanded(
-            child: _isLoading
-                ? Center(child: CircularProgressIndicator())
-                : _hasError
-                    ? Center(child: Text('Bir hata oluştu'))
-                    : _filteredStations.isEmpty
-                        ? _buildNoStops()
-                        : _buildStationsList(),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            color: AppTheme.primaryColor,
+            child: TabBar(
+              controller: _tabController!,
+              indicatorColor: Colors.white,
+              indicatorWeight: 3,
+              indicatorSize: TabBarIndicatorSize.label,
+              labelStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.normal,
+              ),
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              tabs: const [
+                Tab(text: 'Duraklar'),
+                Tab(text: 'Rotalar'),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppTheme.primaryColor,
-        child: const Icon(Icons.filter_list),
-        onPressed: () {
-          _showFilterOptions(context);
-        },
+      body: TabBarView(
+        controller: _tabController!,
+        children: [
+          // Duraklar sekmesi: arama çubuğu ve durak listesi
+          Column(
+            children: [
+              _buildSearchBar(),
+              Expanded(
+                child: _isLoading
+                    ? Center(child: CircularProgressIndicator())
+                    : _hasError
+                        ? Center(child: Text('Bir hata oluştu'))
+                        : _filteredStations.isEmpty
+                            ? _buildNoStops()
+                            : _buildStationsList(),
+              ),
+            ],
+          ),
+          // Rotalar sekmesi: örnek içerik
+          Center(child: Text('Rotalar sekmesi (örnek içerik)')),
+        ],
       ),
     );
   }
@@ -196,30 +229,41 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
   Widget _buildSearchBar() {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: AppTheme.primaryColor,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(32),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: TextField(
               controller: _searchController,
-              decoration: const InputDecoration(
+              style: const TextStyle(fontSize: 16),
+              cursorColor: AppTheme.primaryColor,
+              decoration: InputDecoration(
                 hintText: 'Hat numarası veya güzergah ara...',
-                prefixIcon: Icon(Icons.search),
+                hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 15),
+                prefixIcon: Icon(Icons.search, color: Colors.grey.shade400, size: 22),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                focusedBorder: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+                isDense: true,
               ),
-              // onChanged kaldırıldı, dinleyici ile yönetiliyor
             ),
           ),
         ),
         // --- Anahtar kelime önerileri kutusu ---
         if (_searchController.text.isNotEmpty)
           Container(
-            color: Colors.white,
+            color: Colors.transparent,
             child: _isKeywordLoading
                 ? const Padding(
                     padding: EdgeInsets.all(8.0),
@@ -227,15 +271,13 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> {
                   )
                 : Column(
                     children: _keywordSuggestions.map((suggestion) => ListTile(
-                          leading: const Icon(Icons.search),
-                          title: Text(suggestion),
+                          leading: Icon(Icons.search, color: Colors.grey.shade400, size: 22),
+                          title: Text(suggestion, style: const TextStyle(fontSize: 15)),
                           onTap: () {
                             _searchController.text = suggestion;
                             _searchController.selection = TextSelection.fromPosition(
                               TextPosition(offset: suggestion.length),
                             );
-                            // İstersen burada arama da tetiklenebilir:
-                            // _onSearchChanged();
                           },
                         )).toList(),
                   ),
