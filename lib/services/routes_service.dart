@@ -30,4 +30,20 @@ class RoutesService {
       throw Exception('Rota bulunamadı');
     }
   }
+
+  Future<List<RouteSearchModel>> searchRoutes(String query) async {
+    final url = '${ApiConstants.baseUrl}/route/search?name=$query';
+    print('[searchRoutes] URL: $url');
+    print('[searchRoutes] Headers: ${ApiConstants.headers.toString()}');
+    
+    final response = await http.get(Uri.parse(url), headers: ApiConstants.headers);
+    
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      final List data = body['data'] ?? [];
+      return data.map((e) => RouteSearchModel.fromJson(e)).toList();
+    } else {
+      throw Exception('Rota araması yapılamadı');
+    }
+  }
 } 

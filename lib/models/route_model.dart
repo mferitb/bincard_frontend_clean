@@ -59,6 +59,68 @@ class RouteModel {
   }
 }
 
+// New model for search API response
+class RouteSearchModel {
+  final int id;
+  final String name;
+  final String code;
+  final String routeType;
+  final String color;
+  final String startStationName;
+  final String endStationName;
+  final int estimatedDurationMinutes;
+  final double totalDistanceKm;
+  final RouteSearchSchedule routeSchedule;
+  final bool hasOutgoingDirection;
+  final bool hasReturnDirection;
+
+  RouteSearchModel({
+    required this.id,
+    required this.name,
+    required this.code,
+    required this.routeType,
+    required this.color,
+    required this.startStationName,
+    required this.endStationName,
+    required this.estimatedDurationMinutes,
+    required this.totalDistanceKm,
+    required this.routeSchedule,
+    required this.hasOutgoingDirection,
+    required this.hasReturnDirection,
+  });
+
+  factory RouteSearchModel.fromJson(Map<String, dynamic> json) {
+    return RouteSearchModel(
+      id: json['id'],
+      name: json['name'],
+      code: json['code'],
+      routeType: json['routeType'],
+      color: json['color'],
+      startStationName: json['startStationName'],
+      endStationName: json['endStationName'],
+      estimatedDurationMinutes: json['estimatedDurationMinutes'],
+      totalDistanceKm: (json['totalDistanceKm'] as num).toDouble(),
+      routeSchedule: RouteSearchSchedule.fromJson(json['routeSchedule']),
+      hasOutgoingDirection: json['hasOutgoingDirection'],
+      hasReturnDirection: json['hasReturnDirection'],
+    );
+  }
+}
+
+class RouteSearchSchedule {
+  final List<String> weekdayHours;
+  final List<String> weekendHours;
+
+  RouteSearchSchedule({required this.weekdayHours, required this.weekendHours});
+
+  factory RouteSearchSchedule.fromJson(Map<String, dynamic> json) {
+    return RouteSearchSchedule(
+      weekdayHours: List<String>.from(json['weekdayHours'] ?? []),
+      weekendHours: List<String>.from(json['weekendHours'] ?? []),
+    );
+  }
+}
+
 class RouteSchedule {
   final List<String> weekdayHours;
   final List<String> weekendHours;

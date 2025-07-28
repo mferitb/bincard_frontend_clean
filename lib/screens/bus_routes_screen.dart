@@ -861,106 +861,285 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> with SingleTickerProv
   }
 }
 
-class _RouteTab extends StatelessWidget {
-  // Kaç id denenecek (örnek: 1-100 arası)
-  final int maxId = 100;
+class _RouteTab extends StatefulWidget {
+  @override
+  State<_RouteTab> createState() => _RouteTabState();
+}
 
-  Future<List<RouteModel>> fetchAllRoutes() async {
-    List<RouteModel> routes = [];
-    for (var id = 1; id <= maxId; id++) {
+class _RouteTabState extends State<_RouteTab> {
+  final TextEditingController _routeSearchController = TextEditingController();
+  String _routeSearchQuery = '';
+  List<RouteSearchModel> _searchResults = [];
+  bool _isSearching = false;
+  bool _hasSearchError = false;
+  List<RouteModel> _allRoutes = [];
+  bool _isLoading = true;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAllRoutes();
+    _routeSearchController.addListener(_onRouteSearchChanged);
+  }
+
+  void _onRouteSearchChanged() async {
+    final value = _routeSearchController.text;
+    setState(() {
+      _routeSearchQuery = value;
+    });
+    
+    if (value.isNotEmpty && value.length >= 2) {
+      setState(() {
+        _isSearching = true;
+        _hasSearchError = false;
+      });
+      
       try {
-        final route = await RoutesService().getRouteById(id);
-        routes.add(route);
+        final results = await RoutesService().searchRoutes(value);
+        setState(() {
+          _searchResults = results;
+          _isSearching = false;
+        });
       } catch (e) {
-        // 404 veya başka hata olursa atla
+        print('Rota araması hatası: $e');
+        setState(() {
+          _hasSearchError = true;
+          _isSearching = false;
+        });
       }
+    } else {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
     }
-    return routes;
+  }
+
+  Future<void> _fetchAllRoutes() async {
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
+    
+    try {
+      List<RouteModel> routes = [];
+      for (var id = 1; id <= 100; id++) {
+        try {
+          final route = await RoutesService().getRouteById(id);
+          routes.add(route);
+        } catch (e) {
+          // 404 veya başka hata olursa atla
+        }
+      }
+      setState(() {
+        _allRoutes = routes;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _hasError = true;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _routeSearchController.removeListener(_onRouteSearchChanged);
+    _routeSearchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<RouteModel>>(
-      future: fetchAllRoutes(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(child: Text('Rotalar yüklenemedi: \n${snapshot.error}'));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('Rota bulunamadı.'));
-        }
-        final routes = snapshot.data!;
-        return ListView.builder(
-          itemCount: routes.length,
-          padding: const EdgeInsets.all(16),
-          itemBuilder: (context, index) {
-            final route = routes[index];
-            return GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => RouteDetailScreen(routeId: route.id),
+    return Column(
+      children: [
+        _buildRouteSearchBar(),
+        Expanded(
+          child: _routeSearchQuery.isNotEmpty
+              ? _buildSearchResults()
+              : _buildAllRoutes(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRouteSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: TextField(
+          controller: _routeSearchController,
+          style: const TextStyle(fontSize: 16),
+          cursorColor: AppTheme.primaryColor,
+          decoration: InputDecoration(
+            hintText: 'Rota adı veya kodu ara...',
+            hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 15),
+            prefixIcon: Icon(Icons.search, color: Colors.grey.shade400, size: 22),
+            suffixIcon: _routeSearchQuery.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.clear, color: Colors.grey.shade400, size: 22),
+                    onPressed: () {
+                      _routeSearchController.clear();
+                    },
+                  )
+                : null,
+            border: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+            isDense: true,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchResults() {
+    if (_isSearching) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
+    if (_hasSearchError) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 80,
+              color: AppTheme.textSecondaryColor.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Arama sırasında hata oluştu',
+              style: TextStyle(
+                fontSize: 18,
+                color: AppTheme.textSecondaryColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    if (_searchResults.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off,
+              size: 80,
+              color: AppTheme.textSecondaryColor.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Arama sonucu bulunamadı',
+              style: TextStyle(
+                fontSize: 18,
+                color: AppTheme.textSecondaryColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '"$_routeSearchQuery" için sonuç yok',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.textSecondaryColor.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      itemCount: _searchResults.length,
+      padding: const EdgeInsets.all(16),
+      itemBuilder: (context, index) {
+        final route = _searchResults[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => RouteDetailScreen(routeId: route.id),
+              ),
+            );
+          },
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: Color(_hexToColor(route.color)),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      bottomLeft: Radius.circular(12),
+                    ),
                   ),
-                );
-              },
-              child: Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: Color(_hexToColor(route.color)),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(12),
-                          bottomLeft: Radius.circular(12),
-                        ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      (route.code.length >= 2 ? route.code.substring(0, 2) : route.code),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        route.name,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                      child: Center(
-                        child: Text(
-                          (route.code.length >= 2 ? route.code.substring(0, 2) : route.code),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryColor,
-                          ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${route.startStationName} → ${route.endStationName}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondaryColor,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(height: 4),
+                      Row(
                         children: [
-                          Text(
-                            route.name,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${route.startStation.name} → ${route.endStation.name}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.textSecondaryColor,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
                           Text(
                             'Süre: ${route.estimatedDurationMinutes} dk',
                             style: TextStyle(
@@ -968,14 +1147,207 @@ class _RouteTab extends StatelessWidget {
                               color: AppTheme.textSecondaryColor,
                             ),
                           ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Mesafe: ${route.totalDistanceKm.toStringAsFixed(1)} km',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondaryColor,
+                            ),
+                          ),
                         ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (route.hasOutgoingDirection)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Gidiş',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: AppTheme.primaryColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          if (route.hasOutgoingDirection && route.hasReturnDirection)
+                            const SizedBox(width: 4),
+                          if (route.hasReturnDirection)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Dönüş',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: AppTheme.accentColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAllRoutes() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
+    if (_hasError) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 80,
+              color: AppTheme.textSecondaryColor.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Rotalar yüklenemedi',
+              style: TextStyle(
+                fontSize: 18,
+                color: AppTheme.textSecondaryColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _fetchAllRoutes,
+              child: const Text('Tekrar Dene'),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    if (_allRoutes.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.directions_bus,
+              size: 80,
+              color: AppTheme.textSecondaryColor.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Rota bulunamadı',
+              style: TextStyle(
+                fontSize: 18,
+                color: AppTheme.textSecondaryColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      itemCount: _allRoutes.length,
+      padding: const EdgeInsets.all(16),
+      itemBuilder: (context, index) {
+        final route = _allRoutes[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => RouteDetailScreen(routeId: route.id),
               ),
             );
           },
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: Color(_hexToColor(route.color)),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      bottomLeft: Radius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      (route.code.length >= 2 ? route.code.substring(0, 2) : route.code),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        route.name,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${route.startStation.name} → ${route.endStation.name}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Süre: ${route.estimatedDurationMinutes} dk',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
