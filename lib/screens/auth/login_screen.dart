@@ -176,19 +176,18 @@ class _LoginScreenState extends State<LoginScreen>
     try {
       final biometricService = BiometricService();
       
-      // Biyometrik kimlik doğrulama kullanılabilir mi?
-      final isAvailable = await biometricService.isBiometricAvailable();
-      
-      // Biyometrik kimlik doğrulama etkinleştirilmiş mi?
-      final isEnabled = await biometricService.isBiometricEnabled();
+      // Enhanced biometric availability check
+      final canAuthenticate = await biometricService.canAuthenticateEnhanced();
       
       if (mounted) {
         setState(() {
-          _canUseBiometrics = isAvailable && isEnabled;
+          _canUseBiometrics = canAuthenticate;
         });
       }
       
-      debugPrint('Biyometrik doğrulama kullanılabilir: $isAvailable, etkin: $isEnabled');
+      // Get detailed biometric status for debugging
+      final status = await biometricService.getBiometricStatusInfo();
+      debugPrint('Biyometrik durum: $status');
     } catch (e) {
       debugPrint('Biyometrik kontrol hatası: $e');
     }
@@ -240,6 +239,10 @@ class _LoginScreenState extends State<LoginScreen>
         try {
           final response = await _authService.login(phoneNumber, password);
           debugPrint('Giriş yanıtı alındı: accessToken= [200~ {response.accessToken.token}');
+          
+          // Re-enable biometric after successful password login
+          await _authService.enableBiometricAfterSuccessfulLogin();
+          
           // Başarılı giriş - bildirim izni iste
           try {
             await NotificationService().handleNotificationFlow();

@@ -9,6 +9,7 @@ import '../../services/secure_storage_service.dart';
 import '../../services/user_service.dart';
 import '../../services/token_service.dart';
 import '../../services/api_service.dart';
+import '../../widgets/biometric_verification_modal.dart';
 import 'login_screen.dart';
 import 'forgot_password_screen.dart'; // Import for forgot password screen
 import '../../screens/home_screen.dart';
@@ -162,19 +163,18 @@ class _RefreshLoginScreenState extends State<RefreshLoginScreen>
 
   Future<void> _checkBiometricAvailability() async {
     try {
-      // Biyometrik kimlik doğrulama kullanılabilir mi?
-      final isAvailable = await _biometricService.isBiometricAvailable();
-      
-      // Biyometrik kimlik doğrulama etkinleştirilmiş mi?
-      final isEnabled = await _biometricService.isBiometricEnabled();
+      // Enhanced biometric availability check
+      final canAuthenticate = await _biometricService.canAuthenticateEnhanced();
       
       if (mounted) {
         setState(() {
-          _canUseBiometrics = isAvailable && isEnabled;
+          _canUseBiometrics = canAuthenticate;
         });
       }
       
-      debugPrint('Biyometrik doğrulama kullanılabilir: $isAvailable, etkin: $isEnabled');
+      // Get detailed biometric status for debugging
+      final status = await _biometricService.getBiometricStatusInfo();
+      debugPrint('Biyometrik durum: $status');
     } catch (e) {
       debugPrint('Biyometrik kontrol hatası: $e');
     }
@@ -254,6 +254,9 @@ class _RefreshLoginScreenState extends State<RefreshLoginScreen>
         // Telefon numarasını tekrar kontrol et
         final phoneNumberAfter = await _secureStorage.getUserPhone();
         debugPrint('🔍 Refresh login sonrası telefon numarası: $phoneNumberAfter');
+        
+        // Re-enable biometric after successful password login
+        await _authService.enableBiometricAfterSuccessfulLogin();
         
         // Fetch user profile to ensure we have updated user information
         try {
@@ -386,63 +389,38 @@ class _RefreshLoginScreenState extends State<RefreshLoginScreen>
   }
 
   Future<void> _loginWithBiometrics() async {
-    // Eğer maksimum deneme sayısına ulaşıldıysa, biyometrik girişi devre dışı bırak
-    if (_biometricAttempts >= _maxBiometricAttempts) {
-      setState(() {
-        _errorMessage = 'Maksimum deneme sayısına ulaşıldı. Lütfen şifrenizle giriş yapın.';
-        _canUseBiometrics = false; // Bu oturumda biyometrik girişi devre dışı bırak
-      });
-      return;
-    }
-    
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+    if (!mounted) return;
     
     try {
-      debugPrint('Biyometrik giriş başlatılıyor...');
-      final success = await _authService.loginWithBiometrics();
+      // Show biometric verification modal
+      final result = await showBiometricVerificationModal(
+        context,
+        title: 'Hızlı Giriş',
+        subtitle: 'Devam etmek için parmak izinizi kullanın',
+        maxAttempts: _maxBiometricAttempts,
+      );
       
-      if (success) {
-        debugPrint('Biyometrik giriş başarılı, ana sayfaya yönlendiriliyor...');
-        if (!mounted) return;
-        _navigateToHome();
+      if (result == true) {
+        debugPrint('Biyometrik doğrulama başarılı, ana sayfaya yönlendiriliyor...');
+        if (mounted) {
+          _navigateToHome();
+        }
       } else {
-        debugPrint('Biyometrik giriş başarısız');
-        setState(() {
-          _biometricAttempts++;
-          _errorMessage = 'Biyometrik doğrulama başarısız oldu. Kalan deneme: ${_maxBiometricAttempts - _biometricAttempts}';
-        });
-        
-        // Maksimum deneme sayısına ulaşıldıysa, manuel giriş isteği göster
-        if (_biometricAttempts >= _maxBiometricAttempts) {
+        debugPrint('Biyometrik doğrulama başarısız veya iptal edildi');
+        // Check if biometric is temporarily disabled
+        final tempDisabled = await _biometricService.isBiometricTemporarilyDisabled();
+        if (tempDisabled) {
           setState(() {
+            _canUseBiometrics = false;
             _errorMessage = 'Maksimum deneme sayısına ulaşıldı. Lütfen şifrenizle giriş yapın.';
-            _canUseBiometrics = false; // Bu oturumda biyometrik girişi devre dışı bırak
           });
         }
       }
     } catch (e) {
-      debugPrint('Biyometrik giriş hatası: $e');
+      debugPrint('Biyometrik modal hatası: $e');
       setState(() {
-        _biometricAttempts++;
-        _errorMessage = 'Biyometrik doğrulama hatası: $e';
+        _errorMessage = 'Biyometrik doğrulama sırasında bir hata oluştu.';
       });
-      
-      // Maksimum deneme sayısına ulaşıldıysa, manuel giriş isteği göster
-      if (_biometricAttempts >= _maxBiometricAttempts && mounted) {
-        setState(() {
-          _errorMessage = 'Maksimum deneme sayısına ulaşıldı. Lütfen şifrenizle giriş yapın.';
-          _canUseBiometrics = false; // Bu oturumda biyometrik girişi devre dışı bırak
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
 
@@ -540,66 +518,41 @@ class _RefreshLoginScreenState extends State<RefreshLoginScreen>
     }
   }
 
-  // Biyometrik kimlik doğrulama penceresini göster
+  // Show biometric prompt using the new modal
   Future<void> _showBiometricPrompt() async {
     if (!mounted) return;
     
-    // Eğer maksimum deneme sayısına ulaşıldıysa, biyometrik girişi devre dışı bırak
-    if (_biometricAttempts >= _maxBiometricAttempts) {
-      setState(() {
-        _errorMessage = 'Maksimum deneme sayısına ulaşıldı. Lütfen şifrenizle giriş yapın.';
-        _canUseBiometrics = false; // Bu oturumda biyometrik girişi devre dışı bırak
-      });
-      return;
-    }
+    debugPrint('Biyometrik kimlik doğrulama modal\'ı gösteriliyor...');
     
-    debugPrint('Biyometrik kimlik doğrulama penceresi gösteriliyor... Deneme: ${_biometricAttempts + 1}/$_maxBiometricAttempts');
-    
-    // Biyometrik giriş başlat
     try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = '';
-      });
-
-      final success = await _authService.loginWithBiometrics();
+      final result = await showBiometricVerificationModal(
+        context,
+        title: 'Hızlı Giriş',
+        subtitle: 'Devam etmek için parmak izinizi kullanın',
+        maxAttempts: _maxBiometricAttempts,
+      );
       
-      if (success) {
-        // Başarılı giriş, ana sayfaya yönlendir
-        debugPrint('Biyometrik giriş başarılı, ana sayfaya yönlendiriliyor...');
+      if (result == true) {
+        debugPrint('Biyometrik doğrulama başarılı, ana sayfaya yönlendiriliyor...');
         if (mounted) {
           _navigateToHome();
         }
       } else {
-        // Başarısız biyometrik giriş, hata mesajı göster
-        debugPrint('Biyometrik giriş başarısız oldu. Deneme: ${_biometricAttempts + 1}');
-        if (mounted) {
+        debugPrint('Biyometrik doğrulama başarısız veya iptal edildi');
+        // Check if biometric is temporarily disabled
+        final tempDisabled = await _biometricService.isBiometricTemporarilyDisabled();
+        if (tempDisabled && mounted) {
           setState(() {
-            _biometricAttempts++;
-            _isLoading = false;
-            
-            if (_biometricAttempts >= _maxBiometricAttempts) {
-              _errorMessage = 'Maksimum deneme sayısına ulaşıldı. Lütfen şifrenizle giriş yapın.';
-              _canUseBiometrics = false; // Bu oturumda biyometrik girişi devre dışı bırak
-            } else {
-              _errorMessage = 'Biyometrik giriş başarısız oldu. Kalan deneme: ${_maxBiometricAttempts - _biometricAttempts}';
-            }
+            _canUseBiometrics = false;
+            _errorMessage = 'Maksimum deneme sayısına ulaşıldı. Lütfen şifrenizle giriş yapın.';
           });
         }
       }
     } catch (e) {
-      debugPrint('Biyometrik giriş hatası: $e');
+      debugPrint('Biyometrik modal hatası: $e');
       if (mounted) {
         setState(() {
-          _biometricAttempts++;
-          _isLoading = false;
-          
-          if (_biometricAttempts >= _maxBiometricAttempts) {
-            _errorMessage = 'Maksimum deneme sayısına ulaşıldı. Lütfen şifrenizle giriş yapın.';
-            _canUseBiometrics = false; // Bu oturumda biyometrik girişi devre dışı bırak
-          } else {
-            _errorMessage = 'Biyometrik giriş hatası. Kalan deneme: ${_maxBiometricAttempts - _biometricAttempts}';
-          }
+          _errorMessage = 'Biyometrik doğrulama sırasında bir hata oluştu.';
         });
       }
     }

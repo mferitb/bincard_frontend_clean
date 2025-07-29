@@ -123,8 +123,8 @@ class AuthService {
     try {
       debugPrint('Biyometrik giriş süreci başlatılıyor...');
       
-      // Biyometrik doğrulama için uygun mu kontrol et
-      final canAuthenticate = await _biometricService.canAuthenticate();
+      // Enhanced biometric authentication check
+      final canAuthenticate = await _biometricService.canAuthenticateEnhanced();
       if (!canAuthenticate) {
         debugPrint('Biyometrik doğrulama kullanılamıyor veya etkinleştirilmemiş');
         return false;
@@ -151,11 +151,11 @@ class AuthService {
         debugPrint('Refresh token geçerli, süresi: $expiry');
       }
       
-      // Biyometrik doğrulama yap
+      // Enhanced biometric authentication
       debugPrint('Biyometrik doğrulama isteği gönderiliyor...');
-      final isAuthenticated = await _biometricService.authenticate(
+      final isAuthenticated = await _biometricService.authenticateEnhanced(
         reason: 'Giriş yapmak için biyometrik doğrulama kullanın',
-        description: 'Devam etmek için parmak izi veya yüz tanıma kullanın',
+        description: 'Devam etmek için parmak izi kullanın',
       );
       
       if (!isAuthenticated) {
@@ -424,12 +424,22 @@ class AuthService {
 
   // Biyometrik doğrulama kullanılabilir mi?
   Future<bool> canUseBiometricAuth() async {
-    return await _biometricService.canAuthenticate();
+    return await _biometricService.canAuthenticateEnhanced();
   }
 
   // Biyometrik doğrulamayı devre dışı bırak
   Future<void> disableBiometricAuth() async {
     await _biometricService.disableBiometricAuthentication();
+  }
+
+  // Re-enable biometric after successful password login
+  Future<void> enableBiometricAfterSuccessfulLogin() async {
+    await _biometricService.enableBiometricAfterSuccessfulLogin();
+  }
+
+  // Get biometric status for debugging
+  Future<Map<String, dynamic>> getBiometricStatus() async {
+    return await _biometricService.getBiometricStatusInfo();
   }
 
   // Kullanıcı bilgilerini API'den al

@@ -17,6 +17,12 @@ class BiometricService {
   
   BiometricService._internal();
 
+  // Storage keys for failure tracking
+  static const String _biometricFailureCountKey = 'biometric_failure_count';
+  static const String _biometricTempDisabledKey = 'biometric_temp_disabled';
+  static const String _biometricLastFailureTimeKey = 'biometric_last_failure_time';
+  static const String _deviceBiometricHashKey = 'device_biometric_hash';
+
   // Cihazın biyometrik kimlik doğrulama özelliklerini kontrol eder
   Future<bool> isBiometricAvailable() async {
     try {
@@ -219,5 +225,169 @@ class BiometricService {
       debugPrint('Biyometrik kayıt kontrol hatası: $e');
       return false;
     }
+  }
+
+  // Enhanced failure tracking methods
+  Future<int> getBiometricFailureCount() async {
+    final countStr = await _secureStorage.read(_biometricFailureCountKey);
+    return int.tryParse(countStr ?? '0') ?? 0;
+  }
+
+  Future<void> incrementBiometricFailureCount() async {
+    final currentCount = await getBiometricFailureCount();
+    await _secureStorage.write(_biometricFailureCountKey, (currentCount + 1).toString());
+    await _secureStorage.write(_biometricLastFailureTimeKey, DateTime.now().toIso8601String());
+    
+    // If reached max attempts, temporarily disable biometric
+    if (currentCount + 1 >= 3) {
+      await _secureStorage.write(_biometricTempDisabledKey, 'true');
+      debugPrint('Biyometrik doğrulama geçici olarak devre dışı bırakıldı (3 başarısız deneme)');
+    }
+  }
+
+  Future<void> resetBiometricFailureCount() async {
+    await _secureStorage.delete(_biometricFailureCountKey);
+    await _secureStorage.delete(_biometricTempDisabledKey);
+    await _secureStorage.delete(_biometricLastFailureTimeKey);
+    debugPrint('Biyometrik başarısızlık sayacı sıfırlandı');
+  }
+
+  Future<bool> isBiometricTemporarilyDisabled() async {
+    final disabled = await _secureStorage.read(_biometricTempDisabledKey);
+    return disabled == 'true';
+  }
+
+  // Device biometric availability monitoring
+  Future<String> _generateBiometricHash() async {
+    try {
+      final availableBiometrics = await getAvailableBiometrics();
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final isSupported = await _localAuth.isDeviceSupported();
+      
+      // Create a simple hash based on available biometric features
+      final hashData = '$isSupported-$canCheck-${availableBiometrics.length}-${availableBiometrics.map((e) => e.toString()).join(',')}';
+      return hashData;
+    } catch (e) {
+      debugPrint('Biyometrik hash oluşturma hatası: $e');
+      return 'error';
+    }
+  }
+
+  Future<bool> checkDeviceBiometricAvailabilityChanged() async {
+    try {
+      final currentHash = await _generateBiometricHash();
+      final storedHash = await _secureStorage.read(_deviceBiometricHashKey);
+      
+      if (storedHash == null) {
+        // First time, store the hash
+        await _secureStorage.write(_deviceBiometricHashKey, currentHash);
+        return false;
+      }
+      
+      if (currentHash != storedHash) {
+        debugPrint('Cihaz biyometrik durumu değişti: $storedHash -> $currentHash');
+        await _secureStorage.write(_deviceBiometricHashKey, currentHash);
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      debugPrint('Biyometrik durum kontrolü hatası: $e');
+      return false;
+    }
+  }
+
+  Future<void> handleDeviceBiometricChange() async {
+    try {
+      final isAvailable = await isBiometricAvailable();
+      final hasEnrolled = await hasAnyBiometricEnrolled();
+      
+      if (!isAvailable || !hasEnrolled) {
+        // Device biometric data was removed, disable biometric authentication
+        await disableBiometricAuthentication();
+        debugPrint('Cihaz biyometrik verisi kaldırıldı, biyometrik doğrulama otomatik olarak devre dışı bırakıldı');
+      }
+    } catch (e) {
+      debugPrint('Biyometrik değişiklik işleme hatası: $e');
+    }
+  }
+
+  // Enhanced canAuthenticate with device monitoring
+  Future<bool> canAuthenticateEnhanced() async {
+    try {
+      // Check if temporarily disabled due to failures
+      final tempDisabled = await isBiometricTemporarilyDisabled();
+      if (tempDisabled) {
+        debugPrint('Biyometrik doğrulama geçici olarak devre dışı (başarısız denemeler)');
+        return false;
+      }
+
+      // Check for device biometric changes
+      final deviceChanged = await checkDeviceBiometricAvailabilityChanged();
+      if (deviceChanged) {
+        await handleDeviceBiometricChange();
+      }
+
+      // Use existing canAuthenticate logic
+      return await canAuthenticate();
+    } catch (e) {
+      debugPrint('Gelişmiş biyometrik kontrol hatası: $e');
+      return false;
+    }
+  }
+
+  // Enhanced authenticate method with failure tracking
+  Future<bool> authenticateEnhanced({
+    String reason = 'Lütfen kimliğinizi doğrulayın',
+    String description = 'Giriş yapmak için biyometrik doğrulama kullanın',
+  }) async {
+    try {
+      // Check if can authenticate
+      final canAuth = await canAuthenticateEnhanced();
+      if (!canAuth) {
+        return false;
+      }
+
+      // Perform authentication
+      final result = await authenticate(reason: reason, description: description);
+      
+      if (result) {
+        // Success - reset failure count
+        await resetBiometricFailureCount();
+        debugPrint('Biyometrik doğrulama başarılı, başarısızlık sayacı sıfırlandı');
+      } else {
+        // Failure - increment failure count
+        await incrementBiometricFailureCount();
+        final failureCount = await getBiometricFailureCount();
+        debugPrint('Biyometrik doğrulama başarısız, başarısızlık sayısı: $failureCount');
+      }
+      
+      return result;
+    } catch (e) {
+      // Error - increment failure count
+      await incrementBiometricFailureCount();
+      debugPrint('Biyometrik doğrulama hatası: $e');
+      return false;
+    }
+  }
+
+  // Re-enable biometric after successful password login
+  Future<void> enableBiometricAfterSuccessfulLogin() async {
+    await resetBiometricFailureCount();
+    debugPrint('Başarılı şifre girişi sonrası biyometrik doğrulama yeniden etkinleştirildi');
+  }
+
+  // Get biometric status info for debugging
+  Future<Map<String, dynamic>> getBiometricStatusInfo() async {
+    return {
+      'isAvailable': await isBiometricAvailable(),
+      'isEnabled': await isBiometricEnabled(),
+      'canAuthenticate': await canAuthenticate(),
+      'canAuthenticateEnhanced': await canAuthenticateEnhanced(),
+      'failureCount': await getBiometricFailureCount(),
+      'isTemporarilyDisabled': await isBiometricTemporarilyDisabled(),
+      'hasAnyEnrolled': await hasAnyBiometricEnrolled(),
+      'availableBiometrics': (await getAvailableBiometrics()).map((e) => e.toString()).toList(),
+    };
   }
 }
