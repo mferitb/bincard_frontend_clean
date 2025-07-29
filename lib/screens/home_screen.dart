@@ -620,35 +620,8 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       );
     }
-    if (_walletError != null) {
-      return Card(
-        elevation: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              Text(_walletError!, style: const TextStyle(fontSize: 18)),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const WalletCreateScreen(),
-                    ),
-                  );
-                },
-                child: const Text('Cüzdan Oluştur'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    if (_walletData == null) {
-      return const SizedBox.shrink();
+    if (_walletError != null || _walletData == null) {
+      return const SizedBox.shrink(); // Don't show anything if wallet doesn't exist or error
     }
     return Container(
       margin: const EdgeInsets.only(top: 16),

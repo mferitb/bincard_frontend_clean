@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'map_screen.dart';
 import 'bus_tracking_screen.dart';
+import 'route_detail_map_screen.dart';
 import '../services/station_service.dart';
 import '../models/station_model.dart';
 import '../models/route_model.dart';
@@ -1078,7 +1079,7 @@ class _RouteTabState extends State<_RouteTab> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => RouteDetailScreen(routeId: route.id),
+                builder: (context) => RouteDetailMapScreen(routeId: route.id),
               ),
             );
           },
@@ -1275,7 +1276,7 @@ class _RouteTabState extends State<_RouteTab> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => RouteDetailScreen(routeId: route.id),
+                builder: (context) => RouteDetailMapScreen(routeId: route.id),
               ),
             );
           },

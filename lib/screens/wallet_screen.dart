@@ -10,6 +10,7 @@ import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 import 'wallet_transfer_detail_screen.dart';
 import 'add_balance_screen.dart';
+import 'wallet_create_screen.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -238,8 +239,15 @@ class _WalletScreenState extends State<WalletScreen> {
               Text(_walletError!, style: const TextStyle(fontSize: 18)),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: _fetchWallet,
-                child: const Text('Tekrar Dene'),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const WalletCreateScreen(),
+                    ),
+                  );
+                },
+                child: const Text('Cüzdan Oluştur'),
               ),
             ],
           ),
