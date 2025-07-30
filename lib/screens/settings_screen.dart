@@ -16,6 +16,11 @@ import 'favorite_stations_screen.dart';
 import '../services/user_service.dart';
 import '../routes.dart';
 import '../services/secure_storage_service.dart';
+import '../services/routes_service.dart';
+import '../models/route_model.dart';
+import 'route_detail_map_screen.dart';
+import '../services/routes_service.dart';
+import 'favorite_routes_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -217,8 +222,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildLikedNewsSection(context),
               const SizedBox(height: 12),
               _buildFavoriteStationsButton(context),
+              const SizedBox(height: 12),
+              _buildFavoriteRoutesButton(context),
               const SizedBox(height: 24),
-              _buildSectionTitle('Bildirim Ayarları'),
               _buildNotificationSettings(),
               const SizedBox(height: 24),
               _buildSectionTitle('Güvenlik Ayarları'),
@@ -898,6 +904,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => FavoriteStationsScreen()),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFavoriteRoutesButton(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.amber.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.star, color: Colors.amber, size: 24),
+        ),
+        title: const Text(
+          'Favori Rotaların',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+        trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const FavoriteRoutesScreen(),
+            ),
           );
         },
       ),

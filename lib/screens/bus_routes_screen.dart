@@ -876,11 +876,13 @@ class _RouteTabState extends State<_RouteTab> {
   List<RouteModel> _allRoutes = [];
   bool _isLoading = true;
   bool _hasError = false;
+  Set<int> _favoriteRouteIds = {};
 
   @override
   void initState() {
     super.initState();
     _fetchAllRoutes();
+    _fetchFavoriteRoutes();
     _routeSearchController.addListener(_onRouteSearchChanged);
   }
 
@@ -941,6 +943,27 @@ class _RouteTabState extends State<_RouteTab> {
       setState(() {
         _hasError = true;
         _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchFavoriteRoutes() async {
+    final favorites = await RoutesService().getFavoriteRoutes();
+    setState(() {
+      _favoriteRouteIds = favorites.map((e) => e.id).toSet();
+    });
+  }
+
+  Future<void> _toggleFavoriteRoute(int routeId) async {
+    final isFav = _favoriteRouteIds.contains(routeId);
+    final success = await RoutesService().addFavoriteRoute(routeId);
+    if (success) {
+      setState(() {
+        if (isFav) {
+          _favoriteRouteIds.remove(routeId);
+        } else {
+          _favoriteRouteIds.add(routeId);
+        }
       });
     }
   }
@@ -1261,6 +1284,7 @@ class _RouteTabState extends State<_RouteTab> {
                 fontWeight: FontWeight.w500,
               ),
             ),
+            const SizedBox(height: 16),
           ],
         ),
       );
@@ -1271,6 +1295,7 @@ class _RouteTabState extends State<_RouteTab> {
       padding: const EdgeInsets.all(16),
       itemBuilder: (context, index) {
         final route = _allRoutes[index];
+        final isFavorite = _favoriteRouteIds.contains(route.id);
         return GestureDetector(
           onTap: () {
             Navigator.push(
@@ -1345,6 +1370,15 @@ class _RouteTabState extends State<_RouteTab> {
                       ),
                     ],
                   ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    isFavorite ? Icons.star : Icons.star_border,
+                    color: isFavorite ? Colors.amber : Colors.grey,
+                  ),
+                  onPressed: () async {
+                    await _toggleFavoriteRoute(route.id);
+                  },
                 ),
               ],
             ),
