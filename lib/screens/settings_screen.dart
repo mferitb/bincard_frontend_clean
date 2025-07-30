@@ -13,6 +13,9 @@ import 'liked_news_screen.dart';
 import '../models/station_model.dart';
 import '../services/station_service.dart';
 import 'favorite_stations_screen.dart';
+import '../services/user_service.dart';
+import '../routes.dart';
+import '../services/secure_storage_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -227,6 +230,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSectionTitle('Hakkında'),
               _buildAboutSettings(),
               const SizedBox(height: 32),
+              _buildDeleteAccountItem(),
+              const SizedBox(height: 16),
               _buildHelpButton(),
             ],
           ),
@@ -636,6 +641,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String? subtitle,
     bool hasArrow = false,
     VoidCallback? onTap,
+    Color? iconColor,
+    Color? textColor,
+    Color? iconBackgroundColor,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -647,10 +655,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
+                color: iconBackgroundColor ?? AppTheme.primaryColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, color: AppTheme.primaryColor, size: 20),
+              child: Icon(icon, color: iconColor ?? AppTheme.primaryColor, size: 20),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -662,7 +670,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      color: AppTheme.textPrimaryColor,
+                      color: textColor ?? AppTheme.textPrimaryColor,
                     ),
                   ),
                   if (subtitle != null) ...[
@@ -721,6 +729,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           elevation: 0,
         ),
+      ),
+    );
+  }
+
+  Widget _buildDeleteAccountItem() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: _buildInfoItem(
+        icon: Icons.delete_forever,
+        title: 'Hesabımı Sil',
+        onTap: () async {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Hesabınızı silmek istediğinize emin misiniz?'),
+              content: const Text('Bu işlem geri alınamaz. Devam etmek istiyor musunuz?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Vazgeç'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Evet, Sil'),
+                ),
+              ],
+            ),
+          );
+          if (confirmed == true) {
+            setState(() { _isLoading = true; });
+            final result = await UserService().deactivateUser();
+            setState(() { _isLoading = false; });
+            if (result.success) {
+              if (mounted) {
+                await SecureStorageService().clearAccessToken();
+                await SecureStorageService().clearRefreshToken();
+                await showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Başarılı'),
+                    content: Text(result.message ?? 'Kullanıcı hesabı silindi.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Tamam'),
+                      ),
+                    ],
+                  ),
+                );
+                Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+              }
+            } else {
+              if (mounted) {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Hata'),
+                    content: Text(result.message ?? 'Hesap silinirken bir hata oluştu.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Tamam'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+            }
+          }
+        },
+        // Kırmızı ikon ve metin için renk override
+        iconColor: Colors.red,
+        textColor: Colors.red,
+        iconBackgroundColor: Colors.redAccent.withOpacity(0.08),
       ),
     );
   }

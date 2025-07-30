@@ -476,6 +476,39 @@ class UserService {
     }
   }
   
+  // Kullanıcı hesabını sil (DELETE mapping: /user/deactivate)
+  Future<ResponseMessage> deactivateUser() async {
+    try {
+      final accessToken = await _secureStorage.getAccessToken();
+      if (accessToken == null) {
+        throw Exception('Access token bulunamadı');
+      }
+      final response = await _dio.delete(
+        ApiConstants.baseUrl + ApiConstants.deactivateUserEndpoint,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+      if (response.statusCode == 200) {
+        debugPrint('Kullanıcı hesabı silindi: ${response.data}');
+        return ResponseMessage.fromJson(response.data);
+      } else {
+        debugPrint('Hesap silme başarısız: ${response.statusCode} - ${response.data}');
+        return ResponseMessage.error('Hesap silme başarısız: ${response.data['message'] ?? 'Bilinmeyen hata'}');
+      }
+    } on DioException catch (e) {
+      debugPrint('Hesap silme DioException: ${e.message}');
+      debugPrint('Response: ${e.response?.data}');
+      return ResponseMessage.error(e.response?.data?['message'] ?? 'Bağlantı hatası');
+    } catch (e) {
+      debugPrint('Hesap silme hatası: ${e}');
+      return ResponseMessage.error('Beklenmeyen bir hata oluştu: ${e}');
+    }
+  }
+  
   // Profil bilgilerini yenile (eksplisit olarak çağrılabilir)
   Future<UserProfile> refreshUserProfile() async {
     debugPrint('Profil bilgileri yenileniyor...');
