@@ -142,4 +142,19 @@ class RoutesService {
     }
     return [];
   }
+
+  Future<bool> removeFavoriteRoute(int routeId) async {
+    final url = ApiConstants.baseUrl + '/route/favorite?routeId=$routeId';
+    final token = await SecureStorageService().getAccessToken();
+    final headers = {
+      ...ApiConstants.headers,
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+    final response = await http.delete(Uri.parse(url), headers: headers);
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      return body['success'] == true;
+    }
+    return false;
+  }
 } 

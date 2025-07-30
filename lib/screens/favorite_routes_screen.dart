@@ -1,8 +1,47 @@
 import 'package:flutter/material.dart';
 import '../services/routes_service.dart';
 
-class FavoriteRoutesScreen extends StatelessWidget {
+class FavoriteRoutesScreen extends StatefulWidget {
   const FavoriteRoutesScreen({Key? key}) : super(key: key);
+
+  @override
+  State<FavoriteRoutesScreen> createState() => _FavoriteRoutesScreenState();
+}
+
+class _FavoriteRoutesScreenState extends State<FavoriteRoutesScreen> {
+  late Future<List<RouteNameDTO>> _futureRoutes;
+  List<RouteNameDTO> _routes = [];
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _futureRoutes = _loadRoutes();
+  }
+
+  Future<List<RouteNameDTO>> _loadRoutes() async {
+    final routes = await RoutesService().getFavoriteRoutes();
+    _routes = routes;
+    return routes;
+  }
+
+  Future<void> _removeFavorite(int routeId) async {
+    setState(() { _loading = true; });
+    final success = await RoutesService().removeFavoriteRoute(routeId);
+    setState(() { _loading = false; });
+    if (success) {
+      setState(() {
+        _routes.removeWhere((r) => r.id == routeId);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Favorilerden kaldırıldı')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Favorilerden kaldırma başarısız')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,15 +54,15 @@ class FavoriteRoutesScreen extends StatelessWidget {
       ),
       backgroundColor: const Color(0xFFF5F5F5),
       body: FutureBuilder<List<RouteNameDTO>>(
-        future: RoutesService().getFavoriteRoutes(),
+        future: _futureRoutes,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting && _routes.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
             return Center(child: Text('Favori rotalar yüklenemedi.'));
           }
-          final routes = snapshot.data ?? [];
+          final routes = _routes;
           if (routes.isEmpty) {
             return const Center(child: Text('Favori rotanız yok.'));
           }
@@ -47,7 +86,13 @@ class FavoriteRoutesScreen extends StatelessWidget {
                   ),
                   title: Text(route.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: Text('${route.startStationName} → ${route.endStationName}'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  trailing: _loading
+                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                      : IconButton(
+                          icon: const Icon(Icons.star, color: Colors.amber),
+                          tooltip: 'Favorilerden kaldır',
+                          onPressed: () => _removeFavorite(route.id),
+                        ),
                   onTap: () {
                     // Detay ekranına yönlendirme eklenebilir
                   },
