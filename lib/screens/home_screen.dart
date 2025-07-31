@@ -462,7 +462,6 @@ class _HomeScreenState extends State<HomeScreen>
           setState(() {
             _selectedIndex = index;
           });
-          
           if (index == 1) {
             Navigator.push(
               context,
@@ -471,12 +470,22 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             );
           } else if (index == 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const WalletScreen(),
-              ),
-            );
+            // Cüzdan kontrolü
+            if (_walletData != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const WalletScreen(),
+                ),
+              );
+            } else {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const WalletCreateScreen(),
+                ),
+              );
+            }
           } else if (index == 3) {
             Navigator.push(
               context,
