@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math; // Added math import
 import 'package:shared_preferences/shared_preferences.dart'; // SharedPreferences için import
+
 import '../../theme/app_theme.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/custom_message.dart';
 import '../../services/biometric_service.dart';
 import '../../services/secure_storage_service.dart';
 import '../../services/user_service.dart';
@@ -338,17 +340,14 @@ class _RefreshLoginScreenState extends State<RefreshLoginScreen>
             
             // Show a helpful message and redirect
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Oturum bilgileriniz geçersiz. Lütfen tekrar giriş yapın.'),
-                  backgroundColor: Colors.orange,
-                  duration: Duration(seconds: 3),
-                ),
+              CustomMessage.show(
+                context,
+                message: 'Oturum bilgileriniz geçersiz. Lütfen tekrar giriş yapın.',
+                type: MessageType.warning,
+                duration: Duration(seconds: 2),
               );
-              
               // Small delay for user to see the message
               await Future.delayed(const Duration(milliseconds: 1500));
-              
               if (mounted) {
                 Navigator.pushReplacementNamed(context, AppRoutes.login);
               }
@@ -358,7 +357,11 @@ class _RefreshLoginScreenState extends State<RefreshLoginScreen>
           
           // For other errors (like wrong password), just show the error message
           debugPrint('❌ Refresh login hatası: $errorMessage');
-          _showErrorDialog(errorMessage);
+          // Show only the actual error message, not the Exception prefix
+          String displayMessage = errorMessage.startsWith('Exception: ')
+              ? errorMessage.substring(11)
+              : errorMessage;
+          _showErrorDialog(displayMessage);
         }
       } finally {
         if (mounted) {
@@ -371,20 +374,10 @@ class _RefreshLoginScreenState extends State<RefreshLoginScreen>
   }
 
   void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Hata'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Tamam'),
-          ),
-        ],
-      ),
+    CustomMessage.show(
+      context,
+      message: message,
+      type: MessageType.error,
     );
   }
 

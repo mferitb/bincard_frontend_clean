@@ -1,5 +1,6 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
+
 import '../theme/app_theme.dart';
 import 'map_screen.dart';
 import 'bus_tracking_screen.dart';
@@ -8,6 +9,7 @@ import '../services/station_service.dart';
 import '../models/station_model.dart';
 import '../models/route_model.dart';
 import '../services/routes_service.dart';
+import '../widgets/custom_message.dart';
 
 class BusRoutesScreen extends StatefulWidget {
   const BusRoutesScreen({super.key});
@@ -124,6 +126,17 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> with SingleTickerProv
         setState(() {
           _favoriteStationIds.remove(stationId);
         });
+        CustomMessage.show(
+          context,
+          message: 'Durak favorilerden kaldırıldı',
+          type: MessageType.info,
+        );
+      } else {
+        CustomMessage.show(
+          context,
+          message: 'İşlem başarısız. Lütfen tekrar deneyin.',
+          type: MessageType.error,
+        );
       }
     } else {
       final success = await StationService().addFavoriteStation(stationId);
@@ -131,6 +144,17 @@ class _BusRoutesScreenState extends State<BusRoutesScreen> with SingleTickerProv
         setState(() {
           _favoriteStationIds.add(stationId);
         });
+        CustomMessage.show(
+          context,
+          message: 'Durak favorilere eklendi',
+          type: MessageType.success,
+        );
+      } else {
+        CustomMessage.show(
+          context,
+          message: 'İşlem başarısız. Lütfen tekrar deneyin.',
+          type: MessageType.error,
+        );
       }
     }
   }
@@ -965,6 +989,17 @@ class _RouteTabState extends State<_RouteTab> {
           _favoriteRouteIds.add(routeId);
         }
       });
+      CustomMessage.show(
+        context,
+        message: isFav ? 'Rota favorilerden kaldırıldı' : 'Rota favorilere eklendi',
+        type: isFav ? MessageType.info : MessageType.success,
+      );
+    } else {
+      CustomMessage.show(
+        context,
+        message: 'İşlem başarısız. Lütfen tekrar deneyin.',
+        type: MessageType.error,
+      );
     }
   }
 

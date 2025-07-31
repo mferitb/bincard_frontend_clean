@@ -11,6 +11,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../services/secure_storage_service.dart';
 import '../../routes.dart';
 import '../../widgets/safe_screen.dart';
+import '../../widgets/custom_message.dart';
 import '../../services/notification_service.dart';
 
 // SharedPreferences anahtarlarını sabit olarak tanımlayalım
@@ -252,10 +253,14 @@ class _LoginScreenState extends State<LoginScreen>
           // Başarılı giriş - ana sayfaya yönlendir
           debugPrint('Giriş başarılı, ana sayfaya yönlendiriliyor...');
           if (!mounted) return;
+          CustomMessage.show(
+            context,
+            message: 'Giriş başarılı! Yönlendiriliyorsunuz...',
+            type: MessageType.success,
+          );
           _navigateToHome();
         } catch (e) {
           debugPrint('Giriş başarısız: $e');
-          
           // SMS doğrulama gerekiyorsa, SMS doğrulama ekranına yönlendir
           if (e.toString().contains("SMS_VERIFICATION_REQUIRED")) {
             debugPrint('SMS doğrulama gerekiyor, ilgili ekrana yönlendiriliyor...');
@@ -274,16 +279,23 @@ class _LoginScreenState extends State<LoginScreen>
               return;
             }
           }
-          
-          setState(() {
-            _errorMessage = e.toString().replaceFirst('Exception: ', '');
-          });
+          if (mounted) {
+            CustomMessage.show(
+              context,
+              message: e.toString().replaceFirst('Exception: ', ''),
+              type: MessageType.error,
+            );
+          }
         }
       } catch (e) {
         debugPrint('Giriş sırasında hata: $e');
-        setState(() {
-          _errorMessage = 'Beklenmeyen bir hata oluştu: $e';
-        });
+        if (mounted) {
+          CustomMessage.show(
+            context,
+            message: 'Beklenmeyen bir hata oluştu: $e',
+            type: MessageType.error,
+          );
+        }
       } finally {
         if (mounted) {
           setState(() {
@@ -409,12 +421,11 @@ class _LoginScreenState extends State<LoginScreen>
               );
               
               // Haber detay sayfasına yönlendirmeden önce kısa bir bildirim göster
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Paylaşılan habere yönlendiriliyorsunuz...'),
-                  duration: const Duration(seconds: 2),
-                  behavior: SnackBarBehavior.floating,
-                ),
+              CustomMessage.show(
+                context,
+                message: 'Paylaşılan habere yönlendiriliyorsunuz...',
+                type: MessageType.info,
+                duration: const Duration(seconds: 2),
               );
               
               // Ana sayfaya yönlendirdikten sonra kısa bir gecikme ile haber detay sayfasına git

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../theme/app_theme.dart';
 import 'dart:io';
+import '../widgets/custom_message.dart';
 
 class ReportProblemScreen extends StatefulWidget {
   final String? busNumber;
@@ -328,9 +330,11 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
           icon: Icon(Icons.my_location, color: AppTheme.primaryColor),
           onPressed: () {
             // Gerçek uygulamada konum servisleri kullanılabilir
-            ScaffoldMessenger.of(
+            CustomMessage.show(
               context,
-            ).showSnackBar(const SnackBar(content: Text('Konum alınıyor...')));
+              message: 'Konum alınıyor...',
+              type: MessageType.info,
+            );
           },
         ),
       ),

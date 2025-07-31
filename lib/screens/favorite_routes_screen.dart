@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/routes_service.dart';
+import '../widgets/custom_message.dart';
 
 class FavoriteRoutesScreen extends StatefulWidget {
   const FavoriteRoutesScreen({Key? key}) : super(key: key);
@@ -33,12 +34,16 @@ class _FavoriteRoutesScreenState extends State<FavoriteRoutesScreen> {
       setState(() {
         _routes.removeWhere((r) => r.id == routeId);
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Favorilerden kaldırıldı')),
+      CustomMessage.show(
+        context,
+        message: 'Favorilerden kaldırıldı',
+        type: MessageType.info,
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Favorilerden kaldırma başarısız')),
+      CustomMessage.show(
+        context,
+        message: 'Favorilerden kaldırma başarısız',
+        type: MessageType.error,
       );
     }
   }

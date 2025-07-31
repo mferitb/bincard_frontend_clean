@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
+import '../widgets/custom_message.dart';
 import '../constants/api_constants.dart';
 import '../services/secure_storage_service.dart';
 import 'package:dio/dio.dart';
@@ -82,18 +84,10 @@ class _WalletCreateScreenState extends State<WalletCreateScreen> {
       );
       if (response.data['success'] == true) {
         if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Başarılı'),
-              content: const Text('Cüzdan başarıyla oluşturuldu!'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Tamam'),
-                ),
-              ],
-            ),
+          CustomMessage.show(
+            context,
+            message: 'Cüzdan başarıyla oluşturuldu!',
+            type: MessageType.success,
           );
         }
       } else {
@@ -107,18 +101,10 @@ class _WalletCreateScreenState extends State<WalletCreateScreen> {
   }
 
   void _showError(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Hata'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tamam'),
-          ),
-        ],
-      ),
+    CustomMessage.show(
+      context,
+      message: message,
+      type: MessageType.error,
     );
   }
 

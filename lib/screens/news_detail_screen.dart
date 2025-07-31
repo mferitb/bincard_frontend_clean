@@ -9,7 +9,9 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
+
 import '../constants/api_constants.dart';
+import '../widgets/custom_message.dart';
 
 class NewsDetailScreen extends StatefulWidget {
   final UserNewsDTO news;
@@ -552,18 +554,16 @@ $truncatedContent
       if (success) {
         _isLiked = !_isLiked;
         _likeCount += _isLiked ? 1 : -1;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_isLiked ? 'Haber beğenildi' : 'Beğeni kaldırıldı'),
-            backgroundColor: _isLiked ? Colors.red : Colors.grey,
-          ),
+        CustomMessage.show(
+          context,
+          message: _isLiked ? 'Haber beğenildi' : 'Beğeni kaldırıldı',
+          type: MessageType.success,
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('İşlem başarısız. Lütfen tekrar deneyin.'),
-            backgroundColor: Colors.orange,
-          ),
+        CustomMessage.show(
+          context,
+          message: 'İşlem başarısız. Lütfen tekrar deneyin.',
+          type: MessageType.error,
         );
       }
       _isLiking = false;

@@ -18,6 +18,7 @@ import '../routes.dart';
 import '../services/secure_storage_service.dart';
 import '../services/routes_service.dart';
 import '../models/route_model.dart';
+import '../widgets/custom_message.dart';
 import 'route_detail_map_screen.dart';
 import '../services/routes_service.dart';
 import 'favorite_routes_screen.dart';
@@ -120,11 +121,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _isBiometricEnabled = true;
           });
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Biyometrik kimlik doğrulama aktifleştirildi'),
-                backgroundColor: AppTheme.successColor,
-              ),
+            CustomMessage.show(
+              context,
+              message: 'Biyometrik kimlik doğrulama aktifleştirildi',
+              type: MessageType.success,
             );
           }
         } else {
@@ -139,22 +139,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _isBiometricEnabled = false;
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Biyometrik kimlik doğrulama devre dışı bırakıldı'),
-              backgroundColor: Colors.orange,
-            ),
+          CustomMessage.show(
+            context,
+            message: 'Biyometrik kimlik doğrulama devre dışı bırakıldı',
+            type: MessageType.warning,
           );
         }
       }
     } catch (e) {
       debugPrint('Biyometrik ayarı değiştirirken hata: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Biyometrik ayarı değiştirilemedi: $e'),
-            backgroundColor: AppTheme.errorColor,
-          ),
+        CustomMessage.show(
+          context,
+          message: 'Biyometrik ayarı değiştirilemedi: $e',
+          type: MessageType.error,
         );
       }
     } finally {

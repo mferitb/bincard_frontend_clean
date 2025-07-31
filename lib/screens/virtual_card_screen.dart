@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../theme/app_theme.dart';
 import 'package:intl/intl.dart';
+import '../widgets/custom_message.dart';
 
 class VirtualCardScreen extends StatefulWidget {
   const VirtualCardScreen({super.key});
@@ -327,8 +329,10 @@ class _VirtualCardScreenState extends State<VirtualCardScreen> {
           icon: Icons.share,
           label: 'Paylaş',
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Kart bilgileri paylaşıldı')),
+            CustomMessage.show(
+              context,
+              message: 'Kart bilgileri paylaşıldı',
+              type: MessageType.success,
             );
           },
         ),
@@ -1015,8 +1019,10 @@ class _VirtualCardScreenState extends State<VirtualCardScreen> {
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('QR kod paylaşıldı')),
+                  CustomMessage.show(
+                    context,
+                    message: 'QR kod paylaşıldı',
+                    type: MessageType.success,
                   );
                 },
                 style: ElevatedButton.styleFrom(

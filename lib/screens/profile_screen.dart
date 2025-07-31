@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../theme/app_theme.dart';
 import 'settings_screen.dart';
+import '../widgets/custom_message.dart';
 import '../services/user_service.dart';
 import '../models/user_model.dart';
 import 'edit_profile_screen.dart';
@@ -177,11 +179,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       debugPrint('🔍 Manuel yenileme sonrası - UI State: ${userProfile.name} ${userProfile.surname}');
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profil başarıyla yenilendi!'),
-            backgroundColor: Colors.green,
-          ),
+        CustomMessage.show(
+          context,
+          message: 'Profil başarıyla yenilendi!',
+          type: MessageType.success,
         );
       }
       
@@ -193,11 +194,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Profil yenilenemedi: $e'),
-            backgroundColor: Colors.red,
-          ),
+        CustomMessage.show(
+          context,
+          message: 'Profil yenilenemedi: $e',
+          type: MessageType.error,
         );
       }
     }
