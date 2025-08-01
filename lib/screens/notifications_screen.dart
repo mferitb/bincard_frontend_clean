@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../services/notification_service.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -101,6 +102,40 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     super.dispose();
   }
 
+  // Okunmuş bildirimleri SharedPreferences'a kaydet
+  Future<void> _saveReadNotifications() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final readNotificationIds = _allNotifications
+          .where((notification) => notification['isRead'] == true)
+          .map((notification) => notification['id'].toString())
+          .toList();
+      await prefs.setStringList('read_notifications', readNotificationIds);
+      debugPrint('Okunmuş bildirimler kaydedildi: $readNotificationIds');
+    } catch (e) {
+      debugPrint('Okunmuş bildirimleri kaydetme hatası: $e');
+    }
+  }
+
+  // Okunmuş bildirimleri SharedPreferences'tan yükle
+  Future<void> _loadReadNotifications() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final readNotificationIds = prefs.getStringList('read_notifications') ?? [];
+      debugPrint('Yüklenen okunmuş bildirimler: $readNotificationIds');
+      
+      // Bildirimlerdeki okunmuş durumunu güncelle
+      for (var notification in _allNotifications) {
+        final notificationId = notification['id']?.toString();
+        if (notificationId != null && readNotificationIds.contains(notificationId)) {
+          notification['isRead'] = true;
+        }
+      }
+    } catch (e) {
+      debugPrint('Okunmuş bildirimleri yükleme hatası: $e');
+    }
+  }
+
   Future<void> _fetchNotifications({bool append = false}) async {
     setState(() {
       _isLoading = true;
@@ -121,12 +156,19 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         return map;
       }).toList();
       debugPrint('Processed notifications: ' + notifications.toString());
+      
       setState(() {
         if (append) {
           _allNotifications.addAll(notifications);
         } else {
           _allNotifications = notifications;
         }
+      });
+      
+      // Okunmuş bildirimleri yükle
+      await _loadReadNotifications();
+      
+      setState(() {
         _displayedNotifications = _currentTab == 'all'
           ? _allNotifications
           : _allNotifications.where((n) => n['type'] == _currentTab).toList();
@@ -151,11 +193,46 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   }
 
   void _markAllAsRead() {
+    // Yerel olarak tüm bildirimleri okundu olarak işaretle
     setState(() {
       for (var notification in _allNotifications) {
         notification['isRead'] = true;
       }
     });
+    
+    // Değişiklikleri SharedPreferences'a kaydet
+    _saveReadNotifications();
+    
+    // Başarı mesajı göster
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Tüm bildirimler okundu olarak işaretlendi'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _markNotificationAsRead(Map<String, dynamic> notification) {
+    // Yerel olarak bildirimi okundu olarak işaretle
+    setState(() {
+      notification['isRead'] = true;
+    });
+    
+    // Değişiklikleri SharedPreferences'a kaydet
+    _saveReadNotifications();
   }
 
   @override
@@ -180,12 +257,16 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ),
         actions: [
           if (unreadCount > 0)
-            TextButton.icon(
-              onPressed: _markAllAsRead,
-              icon: const Icon(Icons.done_all),
-              label: const Text('Tümünü Okundu İşaretle'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppTheme.primaryColor,
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: IconButton(
+                onPressed: _markAllAsRead,
+                icon: Icon(
+                  Icons.done_all,
+                  color: AppTheme.primaryColor,
+                  size: 24,
+                ),
+                tooltip: 'Tümünü okundu olarak işaretle',
               ),
             ),
         ],
@@ -197,7 +278,16 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           unselectedLabelColor: AppTheme.textSecondaryColor,
           labelStyle: const TextStyle(fontWeight: FontWeight.bold),
           isScrollable: true,
-          tabs: _tabs.map((tab) => _buildTabWithBadge(_tabTitles[tab] ?? tab, _currentTab == tab ? unreadCount : 0)).toList(),
+          tabs: _tabs.map((tab) {
+            // Her sekme için okunmamış bildirim sayısını hesapla
+            int tabUnreadCount = 0;
+            if (tab == 'all') {
+              tabUnreadCount = _allNotifications.where((n) => !n['isRead']).length;
+            } else {
+              tabUnreadCount = _allNotifications.where((n) => n['type'] == tab && !n['isRead']).length;
+            }
+            return _buildTabWithBadge(_tabTitles[tab] ?? tab, tabUnreadCount);
+          }).toList(),
         ),
       ),
       body:
@@ -263,9 +353,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       child: GestureDetector(
         onTap: () {
           // Bildirimi okundu olarak işaretle
-          setState(() {
-            notification['isRead'] = true;
-          });
+          _markNotificationAsRead(notification);
 
           // Bildirim detaylarını göster
           _showNotificationDetails(notification);

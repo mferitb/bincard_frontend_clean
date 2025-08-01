@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../theme/app_theme.dart';
 import 'dart:math' as math;
+import 'dart:convert';
 import 'profile_screen.dart';
 import 'wallet_screen.dart';
 import 'add_balance_screen.dart';
@@ -22,6 +23,7 @@ import 'card_renewal_screen.dart';
 import '../services/secure_storage_service.dart';
 import '../services/user_service.dart';
 import '../services/news_service.dart';
+import '../services/notification_service.dart';
 import '../services/api_service.dart';
 import '../constants/api_constants.dart';
 import '../models/user_model.dart';
@@ -41,6 +43,7 @@ import 'package:shimmer/shimmer.dart';
 import '../services/weather_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -89,6 +92,10 @@ class _HomeScreenState extends State<HomeScreen>
   WeatherData? _weatherData;
   bool _isWeatherLoading = false;
   String? _weatherError;
+  
+  // Bildirim sayısı için değişkenler
+  int _unreadNotificationCount = 0;
+  bool _isLoadingNotifications = false;
 
   @override
   void initState() {
@@ -112,6 +119,9 @@ class _HomeScreenState extends State<HomeScreen>
     _newsScrollController.addListener(_onNewsScroll);
     _fetchWallet();
     _fetchWeather();
+    
+    // Bildirim sayısını yükle
+    _loadNotificationCount();
   }
   
   // Haberleri servis üzerinden al
@@ -222,6 +232,63 @@ class _HomeScreenState extends State<HomeScreen>
     } finally {
       setState(() {
         _isLoadingNews = false;
+      });
+    }
+  }
+
+  // Bildirim sayısını yükle
+  Future<void> _loadNotificationCount() async {
+    if (_isLoadingNotifications) return;
+    
+    setState(() {
+      _isLoadingNotifications = true;
+    });
+    
+    try {
+      // Önce API'den tüm bildirimleri al
+      final service = NotificationService();
+      final response = await service.getNotifications(type: '', page: 0, size: 100);
+      final data = response.data;
+      final List content = data['content'] ?? [];
+      
+      // SharedPreferences'tan okunmuş bildirimleri yükle (JSON formatında)
+      final prefs = await SharedPreferences.getInstance();
+      final readNotificationsJson = prefs.getStringList('read_notifications') ?? [];
+      final readNotificationIds = readNotificationsJson.map((jsonString) {
+        try {
+          final Map<String, dynamic> item = jsonDecode(jsonString);
+          return item['id'] as int;
+        } catch (e) {
+          debugPrint('JSON parse hatası: $e');
+          return -1; // Geçersiz ID
+        }
+      }).where((id) => id != -1).toSet();
+      
+      // Okunmamış bildirim sayısını hesapla
+      int unreadCount = 0;
+      for (var notification in content) {
+        final notificationId = notification['id'] as int?;
+        final isReadFromApi = notification['read'] ?? false;
+        final isReadFromCache = notificationId != null && readNotificationIds.contains(notificationId);
+        
+        // API'den okunmamış ve cache'de de okundu işaretlenmemiş ise okunmamış say
+        if (!isReadFromApi && !isReadFromCache) {
+          unreadCount++;
+        }
+      }
+      
+      setState(() {
+        _unreadNotificationCount = unreadCount;
+        _isLoadingNotifications = false;
+      });
+      
+      debugPrint('Toplam bildirim: ${content.length}');
+      debugPrint('Cache\'deki okunmuş bildirimler: ${readNotificationIds.length}');
+      debugPrint('Okunmamış bildirim sayısı: $_unreadNotificationCount');
+    } catch (e) {
+      debugPrint('Bildirim sayısı yüklenirken hata: $e');
+      setState(() {
+        _isLoadingNotifications = false;
       });
     }
   }
@@ -556,12 +623,7 @@ class _HomeScreenState extends State<HomeScreen>
             );
           }),
           const SizedBox(width: 12),
-          _buildAppBarAction(Icons.notifications_outlined, () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const NotificationsScreen()),
-            );
-          }),
+          _buildNotificationAction(),
         ],
       ),
     );
@@ -585,6 +647,70 @@ class _HomeScreenState extends State<HomeScreen>
           icon,
           color: AppTheme.primaryColor,
           size: 20,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationAction() {
+    return InkWell(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+        );
+        // Bildirim sayfasından döndüğünde sayıyı yenile
+        _loadNotificationCount();
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppTheme.backgroundColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppTheme.dividerColor,
+            width: 1,
+          ),
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(
+              Icons.notifications_outlined,
+              color: AppTheme.primaryColor,
+              size: 20,
+            ),
+            if (_unreadNotificationCount > 0)
+              Positioned(
+                right: -6,
+                top: -6,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: _unreadNotificationCount > 9 ? 4 : 3,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white, width: 1),
+                  ),
+                  constraints: BoxConstraints(
+                    minWidth: 14,
+                    minHeight: 14,
+                  ),
+                  child: Text(
+                    _unreadNotificationCount > 9 ? '9+' : '$_unreadNotificationCount',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
