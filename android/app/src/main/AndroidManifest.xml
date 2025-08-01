@@ -19,6 +19,13 @@
     <!-- KAMERA İZNİ EKLENDİ -->
     <uses-permission android:name="android.permission.CAMERA" />
     
+    <!-- Galeri erişimi için gerekli izinler -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- Android 13+ için medya izinleri -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    
     <application
         android:label="Şehir Kartım"
         android:name="${applicationName}"

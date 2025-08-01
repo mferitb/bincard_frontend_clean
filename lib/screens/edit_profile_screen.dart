@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../theme/app_theme.dart';
 import '../services/user_service.dart';
 import '../models/user_model.dart';
@@ -80,6 +81,71 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     });
     
     try {
+      // Galeriye erişim izni kontrol et ve iste
+      PermissionStatus storagePermission = await Permission.storage.status;
+      PermissionStatus photosPermission = await Permission.photos.status;
+      
+      // Android 13+ için photos izni, daha eski sürümler için storage izni
+      bool hasPermission = false;
+      
+      if (Platform.isAndroid) {
+        // Android 13+ (API 33+) için photos izni kullan
+        if (await Permission.photos.isGranted) {
+          hasPermission = true;
+        } else if (await Permission.storage.isGranted) {
+          hasPermission = true;
+        } else {
+          // İzin iste
+          Map<Permission, PermissionStatus> permissions = await [
+            Permission.photos,
+            Permission.storage,
+          ].request();
+          
+          hasPermission = permissions[Permission.photos] == PermissionStatus.granted ||
+                         permissions[Permission.storage] == PermissionStatus.granted;
+        }
+      } else if (Platform.isIOS) {
+        // iOS için photos izni
+        if (photosPermission.isGranted) {
+          hasPermission = true;
+        } else {
+          photosPermission = await Permission.photos.request();
+          hasPermission = photosPermission.isGranted;
+        }
+      }
+      
+      if (!hasPermission) {
+        setState(() {
+          _isUploading = false;
+          _photoErrorMessage = 'Galeri erişimi için izin gerekli. Lütfen uygulama ayarlarından izin verin.';
+        });
+        
+        // Kullanıcıyı ayarlara yönlendir
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('İzin Gerekli'),
+              content: const Text('Profil fotoğrafı değiştirmek için galeri erişimi gereklidir. Uygulama ayarlarından izin verebilirsiniz.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('İptal'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    openAppSettings();
+                  },
+                  child: const Text('Ayarlara Git'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+      
       final pickedFile = await _imagePicker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 80,

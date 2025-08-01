@@ -476,15 +476,23 @@ class UserService {
     }
   }
   
-  // Kullanıcı hesabını sil (DELETE mapping: /user/deactivate)
+  // Kullanıcı hesabını sil (DELETE mapping: /user/delete-account)
   Future<ResponseMessage> deactivateUser() async {
     try {
       final accessToken = await _secureStorage.getAccessToken();
       if (accessToken == null) {
         throw Exception('Access token bulunamadı');
       }
+      
+      // Backend'in beklediği request format
+      final requestData = {
+        // Backend'deki DeleteAccountRequest modeline göre gerekli alanları ekleyin
+        // Örnek: 'reason': 'User requested account deletion'
+      };
+      
       final response = await _dio.delete(
         ApiConstants.baseUrl + ApiConstants.deactivateUserEndpoint,
+        data: requestData,
         options: Options(
           headers: {
             'Authorization': 'Bearer $accessToken',

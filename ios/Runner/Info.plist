@@ -76,6 +76,9 @@
 		<string>Yakındaki yerleri bulmak için konumunuza ihtiyacımız var.</string>
 		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 		<string>Yakındaki yerleri bulmak için konumunuza ihtiyacımız var.</string>
+		<!-- Galeri erişimi için gerekli açıklama -->
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Profil fotoğrafınızı güncellemek için foto galerinize erişim gereklidir.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>
