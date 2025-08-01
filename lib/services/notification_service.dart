@@ -148,18 +148,26 @@ class NotificationService {
   }
 
   // Bildirimi sil
-  Future<Response> deleteNotification(int id) async {
-    final dio = Dio();
-    final accessToken = await SecureStorageService().getAccessToken();
-    final url = '${ApiConstants.baseUrl}${ApiConstants.notificationDetail(id)}';
-    return await dio.delete(
-      url,
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-        },
-      ),
-    );
+  Future<bool> deleteNotification(int id) async {
+    try {
+      final dio = Dio();
+      final accessToken = await SecureStorageService().getAccessToken();
+      final url = '${ApiConstants.baseUrl}${ApiConstants.notificationDetail(id)}';
+      final response = await dio.delete(
+        url,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+          },
+        ),
+      );
+      
+      // 204 NO_CONTENT veya 200 OK yanıtları başarılı kabul edilir
+      return response.statusCode == 204 || response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Bildirim silme hatası: $e');
+      return false;
+    }
   }
 
   // Bildirim sayısını getir

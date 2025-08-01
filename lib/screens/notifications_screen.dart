@@ -348,35 +348,84 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final icon = _notificationIcons[type] ?? Icons.notifications_none;
     final isRead = notification['isRead'];
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: GestureDetector(
-        onTap: () {
-          // Bildirimi okundu olarak işaretle
-          _markNotificationAsRead(notification);
-
-          // Bildirim detaylarını göster
-          _showNotificationDetails(notification);
-        },
-        child: Container(
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: isRead ? 1 : 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isRead ? Colors.transparent : color.withOpacity(0.3),
+          width: isRead ? 0 : 1,
+        ),
+      ),
+      child: Dismissible(
+        key: Key('notification_${notification['id']}'),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
           decoration: BoxDecoration(
-            color: isRead ? Colors.white : Colors.white.withOpacity(0.9),
+            color: Colors.red,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color:
-                    isRead
-                        ? Colors.black.withOpacity(0.05)
-                        : color.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Icon(
+                Icons.delete_outline,
+                color: Colors.white,
+                size: 24,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Sil',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ],
-            border: Border.all(
-              color: isRead ? Colors.transparent : color.withOpacity(0.3),
-              width: isRead ? 0 : 1,
-            ),
           ),
+        ),
+        confirmDismiss: (direction) async {
+          return await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Bildirimi Sil'),
+              content: const Text('Bu bildirimi silmek istediğinizden emin misiniz?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('İptal'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red,
+                  ),
+                  child: const Text('Sil'),
+                ),
+              ],
+            ),
+          ) ?? false;
+        },
+        onDismissed: (direction) async {
+          // Hemen state'den kaldır (widget ağacından çıkar)
+          setState(() {
+            _displayedNotifications.removeWhere((item) => item['id'] == notification['id']);
+            _allNotifications.removeWhere((item) => item['id'] == notification['id']);
+          });
+          
+          // Sonra API çağrısını yap
+          await _deleteNotification(notification);
+        },
+        child: InkWell(
+          onTap: () {
+            _markNotificationAsRead(notification);
+            _showNotificationDetails(notification);
+          },
+          borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -449,9 +498,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ),
       ),
     );
-  }
-
-  void _showNotificationDetails(Map<String, dynamic> notification) async {
+  }  void _showNotificationDetails(Map<String, dynamic> notification) async {
     final service = NotificationService();
     try {
       final response = await service.getNotificationDetail(notification['id']);
@@ -542,5 +589,49 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ],
       ),
     );
+  }
+
+  Future<void> _deleteNotification(Map<String, dynamic> notification) async {
+    try {
+      // API'den bildirimi sil
+      final service = NotificationService();
+      final success = await service.deleteNotification(notification['id']);
+      
+      if (success) {
+        // SnackBar göster
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bildirim silindi'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        throw Exception('Silme işlemi başarısız');
+      }
+    } catch (e) {
+      // Hata durumunda bildirimi geri ekle
+      setState(() {
+        if (!_allNotifications.any((item) => item['id'] == notification['id'])) {
+          _allNotifications.add(notification);
+        }
+        if (!_displayedNotifications.any((item) => item['id'] == notification['id'])) {
+          _displayedNotifications.add(notification);
+        }
+      });
+      
+      // Hata mesajı göster
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Bildirim silinemedi: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }
