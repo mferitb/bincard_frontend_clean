@@ -11,7 +11,6 @@ import 'services/auth_service.dart';
 import 'services/user_service.dart';
 import 'dart:async';
 import 'services/secure_storage_service.dart';
-import 'services/app_state_service.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:app_links/app_links.dart';
@@ -106,26 +105,9 @@ Future<void> main() async {
   final apiService = ApiService();
   final authService = AuthService();
   
-  // Uygulama önceki oturumda düzgün kapandı mı kontrol et
-  final wasClosedProperly = await AppStateService.wasAppClosedProperly();
-  
-  // Eğer uygulama düzgün kapanmadıysa veya ilk kez başlatılıyorsa
-  if (!wasClosedProperly) {
-    debugPrint('Uygulama düzgün kapanmamış veya ilk kez başlatılıyor. Otomatik oturum açma devre dışı.');
-    // Otomatik oturum açmayı engelle
-    await authService.clearTokens();
-  } else {
-    debugPrint('Uygulama düzgün kapanmış, token kontrolü yapılıyor...');
-    // Token kontrolü yap (ama yine de splash screen'den sonra login ekranına yönlendirilecek)
-    try {
-      await authService.checkAndRefreshToken();
-    } catch (e) {
-      debugPrint('Token kontrolü sırasında hata: $e');
-    }
-  }
-  
-  // Uygulama çıkışta düzgün kapanacak şekilde işaretle
-  AppStateService.markAppAsClosed();
+  // Uygulama her zaman splash screen'den başlayacak
+  // Token kontrolü splash screen'de yapılacak
+  debugPrint('Uygulama başlatılıyor, splash screen\'den başlayacak...');
   
   runApp(
     MultiProvider(
@@ -280,7 +262,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Uygulama arka plana geçtiğinde veya kapatıldığında
     if (state == AppLifecycleState.detached || state == AppLifecycleState.paused) {
-      AppStateService.markAppAsClosed();
       _locationTimer?.cancel();
     } else if (state == AppLifecycleState.resumed) {
       // Uygulama tekrar öne geldiğinde izin ve gönderim kontrolü

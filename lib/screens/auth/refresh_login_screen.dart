@@ -381,42 +381,6 @@ class _RefreshLoginScreenState extends State<RefreshLoginScreen>
     );
   }
 
-  Future<void> _loginWithBiometrics() async {
-    if (!mounted) return;
-    
-    try {
-      // Show biometric verification modal
-      final result = await showBiometricVerificationModal(
-        context,
-        title: 'Hızlı Giriş',
-        subtitle: 'Devam etmek için parmak izinizi kullanın',
-        maxAttempts: _maxBiometricAttempts,
-      );
-      
-      if (result == true) {
-        debugPrint('Biyometrik doğrulama başarılı, ana sayfaya yönlendiriliyor...');
-        if (mounted) {
-          _navigateToHome();
-        }
-      } else {
-        debugPrint('Biyometrik doğrulama başarısız veya iptal edildi');
-        // Check if biometric is temporarily disabled
-        final tempDisabled = await _biometricService.isBiometricTemporarilyDisabled();
-        if (tempDisabled) {
-          setState(() {
-            _canUseBiometrics = false;
-            _errorMessage = 'Maksimum deneme sayısına ulaşıldı. Lütfen şifrenizle giriş yapın.';
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Biyometrik modal hatası: $e');
-      setState(() {
-        _errorMessage = 'Biyometrik doğrulama sırasında bir hata oluştu.';
-      });
-    }
-  }
-
   void _navigateToHome() {
     debugPrint('_navigateToHome metodu çağrıldı');
     // Daha güvenli yönlendirme işlemi
@@ -491,16 +455,12 @@ class _RefreshLoginScreenState extends State<RefreshLoginScreen>
         _biometricAttempts = 0;
         
         try {
-          // Access token kontrolü yap
+          // Access token kontrolü yap - varsa da yeniden doğrulama iste
           final accessToken = await _secureStorage.getAccessToken();
           
-          // Eğer access token yoksa, biyometrik girişi dene
-          if (accessToken == null) {
-            _showBiometricPrompt();
-          } else {
-            // Access token varsa, doğrudan ana sayfaya yönlendir
-            _navigateToHome();
-          }
+          // Her durumda biyometrik doğrulama iste (access token varsa bile)
+          debugPrint('Access token durumu: ${accessToken != null ? "var" : "yok"}, yine de biyometrik doğrulama isteniyor');
+          _showBiometricPrompt();
         } catch (e) {
           debugPrint('Access token kontrolü sırasında hata: $e');
           _showBiometricPrompt();
@@ -703,7 +663,6 @@ class _RefreshLoginScreenState extends State<RefreshLoginScreen>
         _buildLoginButton(),
         const SizedBox(height: 12),
         _buildForgotPasswordButton(),
-        // Biyometrik giriş butonunu ve _canUseBiometrics kontrolünü kaldırdım
         const SizedBox(height: 16),
         _buildDifferentAccountButton(),
         const SizedBox(height: 24),
@@ -907,25 +866,6 @@ class _RefreshLoginScreenState extends State<RefreshLoginScreen>
                   Icon(Icons.arrow_forward_rounded, size: 18),
                 ],
               ),
-    );
-  }
-  
-  Widget _buildBiometricLoginButton() {
-    return ElevatedButton.icon(
-      onPressed: _isLoading ? null : _loginWithBiometrics,
-      icon: const Icon(Icons.fingerprint, size: 24),
-      label: const Text(
-        'Biyometrik Kimlik ile Giriş',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.blue.shade600,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 2,
-        shadowColor: Colors.blue.withOpacity(0.5),
-      ),
     );
   }
 

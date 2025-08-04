@@ -378,6 +378,7 @@ class AuthService {
     } catch (e) {
       // Hata olsa bile, sadece access token'ı temizle
       await _secureStorage.clearAccessToken();
+      
       debugPrint('Logout hatası: $e');
       
       // Hızlı giriş ekranına yönlendir (hata olsa bile)
