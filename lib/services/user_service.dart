@@ -538,27 +538,31 @@ class UserService {
     }
   }
 
-  // Kullanıcı hesabını dondurma kaldırma (POST mapping: /unfreeze-account) 
-  Future<ResponseMessage> unfreezeAccount({required String reason}) async {
+  // Kullanıcı hesabını dondurma kaldırma (POST mapping: /auth/unfreeze-account - PUBLIC endpoint) 
+  Future<ResponseMessage> unfreezeAccount({
+    required String password, 
+    String? phoneNumber,
+    String? note
+  }) async {
     try {
-      final accessToken = await _secureStorage.getAccessToken();
-      if (accessToken == null) {
-        throw Exception('Access token bulunamadı');
-      }
-      
       // Backend'in beklediği UnfreezeAccountRequest formatı
       final requestData = <String, dynamic>{
-        'reason': reason,
+        'password': password,
+        'note': note ?? 'Kullanıcı hesabını aktifleştirdi',
       };
       
-      debugPrint('Hesap dondurma kaldırma isteği gönderiliyor');
+      // Telefon numarası varsa ekle
+      if (phoneNumber != null && phoneNumber.isNotEmpty) {
+        requestData['telephone'] = phoneNumber;
+      }
+      
+      debugPrint('Hesap dondurma kaldırma isteği gönderiliyor (public endpoint): $requestData');
       
       final response = await _dio.post(
         ApiConstants.baseUrl + ApiConstants.unfreezeAccountEndpoint,
         data: requestData,
         options: Options(
           headers: {
-            'Authorization': 'Bearer $accessToken',
             'Content-Type': 'application/json',
           },
         ),
@@ -579,6 +583,14 @@ class UserService {
       if (e.response?.data != null && e.response?.data['message'] != null) {
         final errorMessage = e.response?.data['message'];
         debugPrint('Backend hata mesajı: $errorMessage');
+        
+        // Özel hata durumlarını kontrol et
+        if (errorMessage.toString().contains('password') || errorMessage.toString().contains('şifre')) {
+          return ResponseMessage.error('Şifre doğrulama başarısız. Lütfen şifrenizi kontrol edin.');
+        } else if (errorMessage.toString().contains('frozen') || errorMessage.toString().contains('dondur')) {
+          return ResponseMessage.error('Hesap dondurulmuş durumda değil.');
+        }
+        
         return ResponseMessage.error(errorMessage.toString());
       }
       

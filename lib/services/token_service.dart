@@ -363,9 +363,11 @@ class TokenService {
   // API istekleri için interceptor oluştur
   Interceptor get tokenInterceptor => InterceptorsWrapper(
     onRequest: (options, handler) async {
-      // Login ve token yenileme istekleri için token kontrolü yapma
-      if (options.path.contains('/auth/login') || options.path.contains('/auth/refresh')) {
-        debugPrint('Login veya refresh isteği, token kontrolü yapılmıyor: ${options.path}');
+      // Login, token yenileme ve hesap aktifleştirme istekleri için token kontrolü yapma
+      if (options.path.contains('/auth/login') || 
+          options.path.contains('/auth/refresh') ||
+          options.path.contains('/auth/unfreeze-account')) {
+        debugPrint('Public auth endpoint isteği, token kontrolü yapılmıyor: ${options.path}');
         return handler.next(options);
       }
       

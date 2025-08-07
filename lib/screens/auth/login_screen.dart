@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../theme/app_theme.dart';
 import '../../services/auth_service.dart';
+import '../../services/user_service.dart';
 import '../../services/biometric_service.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
@@ -31,6 +32,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
+  final _userService = UserService();
   final _biometricService = BiometricService();
   
   // SharedPreferences örneğini bir kere oluşturup saklayalım
@@ -261,6 +263,30 @@ class _LoginScreenState extends State<LoginScreen>
           _navigateToHome();
         } catch (e) {
           debugPrint('Giriş başarısız: $e');
+          debugPrint('Hata mesajı türü: ${e.runtimeType}');
+          debugPrint('Hata mesajı içeriği: "${e.toString()}"');
+          
+          // Hesap dondurulmuş/aktif değil kontrolü
+          if (e.toString().contains("ACCOUNT_FROZEN") || 
+              e.toString().contains("hesap dondurulmuş") || 
+              e.toString().contains("account frozen") ||
+              e.toString().contains("frozen") ||
+              e.toString().contains("Kullanıcı aktif değil") ||
+              e.toString().contains("UserNotActiveException") ||
+              e.toString().contains("aktif değil") ||
+              e.toString().contains("not active") ||
+              e.toString().contains("Hesap Aktif Değil") ||
+              e.toString().contains("AccountFrozenException")) {
+            debugPrint('Hesap dondurulmuş/aktif değil, aktifleştirme dialog\'u gösteriliyor...');
+            if (mounted) {
+              _showAccountFrozenDialog(phoneNumber, password);
+              setState(() {
+                _isLoading = false;
+              });
+              return;
+            }
+          }
+          
           // SMS doğrulama gerekiyorsa, SMS doğrulama ekranına yönlendir
           if (e.toString().contains("SMS_VERIFICATION_REQUIRED")) {
             debugPrint('SMS doğrulama gerekiyor, ilgili ekrana yönlendiriliyor...');
@@ -1089,5 +1115,204 @@ class _LoginScreenState extends State<LoginScreen>
     } else {
       return 'İyi Geceler';
     }
+  }
+
+  // Hesap dondurulmuş dialog'u göster
+  void _showAccountFrozenDialog(String phoneNumber, String password) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.pause_circle_outline, color: Colors.orange, size: 28),
+              SizedBox(width: 8),
+              Text('Hesap Aktif Değil'),
+            ],
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Hesabınız geçici olarak dondurulmuş veya aktif olmayan durumda. Hesabınızı tekrar aktifleştirmek için aşağıdaki butona tıklayın.',
+                style: TextStyle(fontSize: 16),
+              ),
+              SizedBox(height: 12),
+              Text(
+                '⚠️ Aktifleştirme işlemi için mevcut şifrenizi girmeniz gerekecek.',
+                style: TextStyle(fontSize: 14, color: Colors.orange),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Vazgeç'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _showUnfreezeAccountDialog(phoneNumber, password);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Hesabımı Aktifleştir'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Hesap aktifleştirme dialog'u göster
+  void _showUnfreezeAccountDialog(String phoneNumber, String currentPassword) {
+    final passwordController = TextEditingController();
+    final noteController = TextEditingController();
+    bool isLoading = false;
+    bool obscurePassword = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Hesabı Aktifleştir'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Hesabınızı aktifleştirmek için mevcut şifrenizi girin:'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: obscurePassword,
+                    decoration: InputDecoration(
+                      labelText: 'Mevcut Şifre',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscurePassword ? Icons.visibility : Icons.visibility_off),
+                        onPressed: () {
+                          setDialogState(() {
+                            obscurePassword = !obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: noteController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Not (İsteğe bağlı)',
+                      border: OutlineInputBorder(),
+                      hintText: 'Aktifleştirme sebebi...',
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading ? null : () => Navigator.of(context).pop(),
+                  child: const Text('İptal'),
+                ),
+                ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          final enteredPassword = passwordController.text.trim();
+                          
+                          if (enteredPassword.isEmpty) {
+                            CustomMessage.show(
+                              context,
+                              message: 'Şifre boş bırakılamaz',
+                              type: MessageType.error,
+                            );
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isLoading = true;
+                          });
+
+                          try {
+                            // Hesap aktifleştirme isteği
+                            final result = await _userService.unfreezeAccount(
+                              password: enteredPassword,
+                              phoneNumber: phoneNumber, // Telefon numarasını da gönder
+                              note: noteController.text.trim().isEmpty 
+                                  ? 'Kullanıcı hesabını aktifleştirdi' 
+                                  : noteController.text.trim(),
+                            );
+
+                            if (result.success) {
+                              if (mounted) {
+                                Navigator.of(context).pop(); // Dialog'u kapat
+                                CustomMessage.show(
+                                  context,
+                                  message: result.message ?? 'Hesabınız başarıyla aktifleştirildi. Şimdi giriş yapabilirsiniz.',
+                                  type: MessageType.success,
+                                );
+                                
+                                // Aktifleştirmeden sonra otomatik giriş dene
+                                Future.delayed(const Duration(seconds: 1), () {
+                                  if (mounted) {
+                                    _login(); // Otomatik giriş dene
+                                  }
+                                });
+                              }
+                            } else {
+                              if (mounted) {
+                                CustomMessage.show(
+                                  context,
+                                  message: result.message ?? 'Hesap aktifleştirilemedi',
+                                  type: MessageType.error,
+                                );
+                              }
+                            }
+                          } catch (e) {
+                            debugPrint('Hesap aktifleştirme hatası: $e');
+                            if (mounted) {
+                              CustomMessage.show(
+                                context,
+                                message: 'Hesap aktifleştirme sırasında bir hata oluştu: $e',
+                                type: MessageType.error,
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setDialogState(() {
+                                isLoading = false;
+                              });
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text('Aktifleştir'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 }
