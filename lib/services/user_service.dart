@@ -476,19 +476,135 @@ class UserService {
     }
   }
   
-  // Kullanıcı hesabını sil (DELETE mapping: /user/delete-account)
-  Future<ResponseMessage> deactivateUser() async {
+  // Kullanıcı hesabını dondur (POST mapping: /freeze-account)
+  Future<ResponseMessage> freezeAccount({required String reason, required int freezeDurationDays}) async {
     try {
       final accessToken = await _secureStorage.getAccessToken();
       if (accessToken == null) {
         throw Exception('Access token bulunamadı');
       }
       
-      // Backend'in beklediği request format
-      final requestData = {
-        // Backend'deki DeleteAccountRequest modeline göre gerekli alanları ekleyin
-        // Örnek: 'reason': 'User requested account deletion'
+      // Backend'in beklediği FreezeAccountRequest formatı
+      final requestData = <String, dynamic>{
+        'reason': reason,
+        'freezeDurationDays': freezeDurationDays,
       };
+      
+      debugPrint('Hesap dondurma isteği gönderiliyor: ${requestData.keys.toList()}');
+      
+      final response = await _dio.post(
+        ApiConstants.baseUrl + ApiConstants.freezeAccountEndpoint,
+        data: requestData,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+      
+      if (response.statusCode == 200) {
+        debugPrint('Kullanıcı hesabı donduruldu: ${response.data}');
+        return ResponseMessage.fromJson(response.data);
+      } else {
+        debugPrint('Hesap dondurma başarısız: ${response.statusCode} - ${response.data}');
+        return ResponseMessage.error('Hesap dondurma başarısız: ${response.data['message'] ?? 'Bilinmeyen hata'}');
+      }
+    } on DioException catch (e) {
+      debugPrint('Hesap dondurma DioException: ${e.message}');
+      debugPrint('Response: ${e.response?.data}');
+      
+      // API'den gelen hata mesajlarını kontrol et
+      if (e.response?.data != null && e.response?.data['message'] != null) {
+        final errorMessage = e.response?.data['message'];
+        debugPrint('Backend hata mesajı: $errorMessage');
+        
+        // Özel hata durumlarını kontrol et
+        if (errorMessage.toString().contains('reason') || errorMessage.toString().contains('neden')) {
+          return ResponseMessage.error('Dondurma nedeni belirtilmelidir ve 500 karakteri geçemez.');
+        } else if (errorMessage.toString().contains('duration') || errorMessage.toString().contains('süre')) {
+          return ResponseMessage.error('Dondurma süresi 1-365 gün arasında olmalıdır.');
+        } else if (errorMessage.toString().contains('unauthorized')) {
+          return ResponseMessage.error('Yetkiniz bulunmamaktadır. Lütfen tekrar giriş yapın.');
+        }
+        
+        return ResponseMessage.error(errorMessage.toString());
+      }
+      
+      return ResponseMessage.error(e.response?.data?['message'] ?? 'Bağlantı hatası');
+    } catch (e) {
+      debugPrint('Hesap dondurma hatası: ${e}');
+      return ResponseMessage.error('Beklenmeyen bir hata oluştu: ${e}');
+    }
+  }
+
+  // Kullanıcı hesabını dondurma kaldırma (POST mapping: /unfreeze-account) 
+  Future<ResponseMessage> unfreezeAccount({required String reason}) async {
+    try {
+      final accessToken = await _secureStorage.getAccessToken();
+      if (accessToken == null) {
+        throw Exception('Access token bulunamadı');
+      }
+      
+      // Backend'in beklediği UnfreezeAccountRequest formatı
+      final requestData = <String, dynamic>{
+        'reason': reason,
+      };
+      
+      debugPrint('Hesap dondurma kaldırma isteği gönderiliyor');
+      
+      final response = await _dio.post(
+        ApiConstants.baseUrl + ApiConstants.unfreezeAccountEndpoint,
+        data: requestData,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+      
+      if (response.statusCode == 200) {
+        debugPrint('Kullanıcı hesabının dondurması kaldırıldı: ${response.data}');
+        return ResponseMessage.fromJson(response.data);
+      } else {
+        debugPrint('Hesap dondurma kaldırma başarısız: ${response.statusCode} - ${response.data}');
+        return ResponseMessage.error('Hesap dondurma kaldırma başarısız: ${response.data['message'] ?? 'Bilinmeyen hata'}');
+      }
+    } on DioException catch (e) {
+      debugPrint('Hesap dondurma kaldırma DioException: ${e.message}');
+      debugPrint('Response: ${e.response?.data}');
+      
+      // API'den gelen hata mesajlarını kontrol et
+      if (e.response?.data != null && e.response?.data['message'] != null) {
+        final errorMessage = e.response?.data['message'];
+        debugPrint('Backend hata mesajı: $errorMessage');
+        return ResponseMessage.error(errorMessage.toString());
+      }
+      
+      return ResponseMessage.error(e.response?.data?['message'] ?? 'Bağlantı hatası');
+    } catch (e) {
+      debugPrint('Hesap dondurma kaldırma hatası: ${e}');
+      return ResponseMessage.error('Beklenmeyen bir hata oluştu: ${e}');
+    }
+  }
+  
+  // Kullanıcı hesabını sil (DELETE mapping: /user/delete-account)
+  Future<ResponseMessage> deactivateUser({required String password, String? reason}) async {
+    try {
+      final accessToken = await _secureStorage.getAccessToken();
+      if (accessToken == null) {
+        throw Exception('Access token bulunamadı');
+      }
+      
+      // Backend'in beklediği DeleteAccountRequest formatı
+      final requestData = <String, dynamic>{
+        'password': password,
+        'reason': reason ?? 'Kullanıcı hesap silme talebinde bulunmuştur',
+        'confirmDeletion': true,
+      };
+      
+      debugPrint('Hesap silme isteği gönderiliyor: ${requestData.keys.toList()}'); // Şifreyi loglamayalım
       
       final response = await _dio.delete(
         ApiConstants.baseUrl + ApiConstants.deactivateUserEndpoint,
@@ -510,6 +626,26 @@ class UserService {
     } on DioException catch (e) {
       debugPrint('Hesap silme DioException: ${e.message}');
       debugPrint('Response: ${e.response?.data}');
+      
+      // API'den gelen hata mesajlarını kontrol et
+      if (e.response?.data != null && e.response?.data['message'] != null) {
+        final errorMessage = e.response?.data['message'];
+        debugPrint('Backend hata mesajı: $errorMessage');
+        
+        // Özel hata durumlarını kontrol et
+        if (errorMessage.toString().contains('confirmation') || 
+            errorMessage.toString().contains('onay') ||
+            errorMessage.toString().contains('confirm')) {
+          return ResponseMessage.error('Hesap silme işlemi için onay gerekli. Lütfen tüm bilgileri doğru girdiğinizden emin olun.');
+        } else if (errorMessage.toString().contains('password')) {
+          return ResponseMessage.error('Şifre doğrulama başarısız. Lütfen şifrenizi kontrol edin.');
+        } else if (errorMessage.toString().contains('unauthorized')) {
+          return ResponseMessage.error('Yetkiniz bulunmamaktadır. Lütfen tekrar giriş yapın.');
+        }
+        
+        return ResponseMessage.error(errorMessage.toString());
+      }
+      
       return ResponseMessage.error(e.response?.data?['message'] ?? 'Bağlantı hatası');
     } catch (e) {
       debugPrint('Hesap silme hatası: ${e}');

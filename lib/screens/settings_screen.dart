@@ -234,6 +234,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSectionTitle('Hakkında'),
               _buildAboutSettings(),
               const SizedBox(height: 32),
+              _buildFreezeAccountItem(),
+              const SizedBox(height: 12),
               _buildDeleteAccountItem(),
               const SizedBox(height: 16),
               _buildHelpButton(),
@@ -737,6 +739,215 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildFreezeAccountItem() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: _buildInfoItem(
+        icon: Icons.pause_circle_outline,
+        title: 'Hesabımı Dondur',
+        onTap: () async {
+          // İlk onay dialog'u
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Hesabınızı dondurmak istediğinize emin misiniz?'),
+              content: const Text('Hesabınız dondurulduğunda geçici olarak erişiminiz kısıtlanacak. Daha sonra tekrar aktifleştirebilirsiniz.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Vazgeç'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Devam Et'),
+                ),
+              ],
+            ),
+          );
+          
+          if (confirmed == true) {
+            // Dondurma detayları dialog'u
+            String? reason;
+            int? freezeDurationDays;
+            
+            final detailsEntered = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) {
+                final reasonController = TextEditingController();
+                final durationController = TextEditingController(text: '30'); // Default 30 gün
+                
+                return AlertDialog(
+                  title: const Text('Hesap Dondurma Detayları'),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Hesap dondurma nedeninizi belirtin:'),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: reasonController,
+                          maxLines: 3,
+                          maxLength: 500,
+                          decoration: const InputDecoration(
+                            labelText: 'Dondurma Nedeni (Zorunlu)',
+                            border: OutlineInputBorder(),
+                            hintText: 'Örn: Geçici olarak uygulamayı kullanamayacağım',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text('Kaç gün süreyle dondurmak istiyorsunuz?'),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: durationController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Gün Sayısı (1-365)',
+                            border: OutlineInputBorder(),
+                            suffixText: 'gün',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          '• Minimum: 1 gün\n• Maksimum: 365 gün',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('İptal'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        final enteredReason = reasonController.text.trim();
+                        final enteredDuration = int.tryParse(durationController.text.trim());
+                        
+                        if (enteredReason.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Dondurma nedeni boş bırakılamaz')),
+                          );
+                          return;
+                        }
+                        
+                        if (enteredReason.length > 500) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Dondurma nedeni 500 karakteri geçemez')),
+                          );
+                          return;
+                        }
+                        
+                        if (enteredDuration == null || enteredDuration < 1 || enteredDuration > 365) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Dondurma süresi 1-365 gün arasında olmalıdır')),
+                          );
+                          return;
+                        }
+                        
+                        reason = enteredReason;
+                        freezeDurationDays = enteredDuration;
+                        Navigator.of(context).pop(true);
+                      },
+                      style: TextButton.styleFrom(foregroundColor: Colors.orange),
+                      child: const Text('Hesabımı Dondur'),
+                    ),
+                  ],
+                );
+              },
+            );
+            
+            if (detailsEntered == true && reason != null && freezeDurationDays != null) {
+              setState(() { _isLoading = true; });
+              final result = await UserService().freezeAccount(
+                reason: reason!,
+                freezeDurationDays: freezeDurationDays!,
+              );
+              setState(() { _isLoading = false; });
+              if (result.success) {
+                if (mounted) {
+                  await showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Hesap Donduruldu'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(result.message ?? 'Hesabınız başarıyla donduruldu.'),
+                          const SizedBox(height: 12),
+                          Text('Dondurma süresi: $freezeDurationDays gün', 
+                               style: const TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          const Text('Hesabınız belirtilen süre sonunda otomatik olarak aktif hale gelecektir.',
+                               style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Tamam'),
+                        ),
+                      ],
+                    ),
+                  );
+                  // Hesap dondurulduktan sonra çıkış yap
+                  await SecureStorageService().clearAccessToken();
+                  await SecureStorageService().clearRefreshToken();
+                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+                }
+              } else {
+                if (mounted) {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Hata'),
+                      content: Text(result.message ?? 'Hesap dondurulurken bir hata oluştu.'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Tamam'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              }
+            } else {
+              // Detaylar girilmedi veya iptal edildi
+              if (mounted) {
+                String message = 'Hesap dondurma işlemi iptal edildi';
+                if (detailsEntered == true && (reason == null || reason!.isEmpty)) {
+                  message = 'Hesap dondurmak için tüm bilgileri girmeniz zorunludur';
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(message)),
+                );
+              }
+            }
+          }
+        },
+        // Turuncu ikon ve metin için renk override
+        iconColor: Colors.orange,
+        textColor: Colors.orange,
+        iconBackgroundColor: Colors.orange.withOpacity(0.08),
+      ),
+    );
+  }
+
   Widget _buildDeleteAccountItem() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
@@ -755,11 +966,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         icon: Icons.delete_forever,
         title: 'Hesabımı Sil',
         onTap: () async {
+          // İlk onay dialog'u
           final confirmed = await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
               title: const Text('Hesabınızı silmek istediğinize emin misiniz?'),
-              content: const Text('Bu işlem geri alınamaz. Devam etmek istiyor musunuz?'),
+              content: const Text('Bu işlem geri alınamaz. Devam etmek için şifrenizi girmeniz gerekecek.'),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
@@ -767,48 +979,120 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('Evet, Sil'),
+                  child: const Text('Devam Et'),
                 ),
               ],
             ),
           );
+          
           if (confirmed == true) {
-            setState(() { _isLoading = true; });
-            final result = await UserService().deactivateUser();
-            setState(() { _isLoading = false; });
-            if (result.success) {
-              if (mounted) {
-                await SecureStorageService().clearAccessToken();
-                await SecureStorageService().clearRefreshToken();
-                await showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Başarılı'),
-                    content: Text(result.message ?? 'Kullanıcı hesabı silindi.'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Tamam'),
+            // Şifre girme dialog'u
+            String? password;
+            final passwordEntered = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) {
+                final passwordController = TextEditingController();
+                return AlertDialog(
+                  title: const Text('Hesap Silme Onayı'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Hesabınızı silmek için şifrenizi girin:'),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Bu işlem geri alınamaz!', 
+                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: passwordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Şifre (Zorunlu)',
+                          border: OutlineInputBorder(),
+                          hintText: 'Mevcut şifrenizi girin',
+                        ),
                       ),
                     ],
                   ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('İptal'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        final enteredPassword = passwordController.text.trim();
+                        if (enteredPassword.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Şifre alanı boş bırakılamaz')),
+                          );
+                          return;
+                        }
+                        password = enteredPassword;
+                        Navigator.of(context).pop(true);
+                      },
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      child: const Text('Hesabımı Sil'),
+                    ),
+                  ],
                 );
-                Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+              },
+            );
+            
+            if (passwordEntered == true && password != null && password!.isNotEmpty) {
+              setState(() { _isLoading = true; });
+              final result = await UserService().deactivateUser(
+                password: password!,
+                reason: 'Kullanıcı hesap silme talebinde bulundu',
+              );
+              setState(() { _isLoading = false; });
+              if (result.success) {
+                if (mounted) {
+                  await SecureStorageService().clearAccessToken();
+                  await SecureStorageService().clearRefreshToken();
+                  await showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Başarılı'),
+                      content: Text(result.message ?? 'Kullanıcı hesabı silindi.'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Tamam'),
+                        ),
+                      ],
+                    ),
+                  );
+                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+                }
+              } else {
+                if (mounted) {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Hata'),
+                      content: Text(result.message ?? 'Hesap silinirken bir hata oluştu.'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Tamam'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
               }
             } else {
+              // Şifre girilmedi veya iptal edildi
               if (mounted) {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Hata'),
-                    content: Text(result.message ?? 'Hesap silinirken bir hata oluştu.'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Tamam'),
-                      ),
-                    ],
-                  ),
+                String message = 'Hesap silme işlemi iptal edildi';
+                if (passwordEntered == true && (password == null || password!.isEmpty)) {
+                  message = 'Hesap silme için şifre girmeniz zorunludur';
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(message)),
                 );
               }
             }
