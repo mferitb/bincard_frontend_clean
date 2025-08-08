@@ -8,6 +8,9 @@ import 'verification_screen.dart';
 import 'login_screen.dart';
 import '../../routes.dart';
 import '../../widgets/safe_screen.dart';
+import '../../widgets/contracts_modal.dart';
+import '../../widgets/single_contract_modal.dart';
+import '../../models/contract_type.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -38,7 +41,6 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  bool _acceptTerms = false;
   bool _isLoading = false;
   String _errorMessage = '';
 
@@ -79,16 +81,6 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
-      if (!_acceptTerms) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Lütfen kullanım koşullarını kabul edin'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
       setState(() {
         _isLoading = true;
         _errorMessage = '';
@@ -174,113 +166,6 @@ class _RegisterScreenState extends State<RegisterScreen>
         }
       }
     }
-  }
-
-  // Gizlilik politikası dialogunu gösterecek metod
-  void _showPrivacyPolicyDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Gizlilik Politikası',
-          style: TextStyle(
-            color: AppTheme.primaryColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Gizlilik Politikası ve Kişisel Verilerin Korunması',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: AppTheme.textPrimaryColor,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Bu gizlilik politikası, şehir kartı hizmetlerimizi kullanırken sizden toplanan kişisel verilerin nasıl kullanıldığını ve korunduğunu açıklamaktadır.',
-                style: TextStyle(
-                  color: AppTheme.textSecondaryColor,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '1. Toplanan Veriler',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: AppTheme.textPrimaryColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '• Kişisel bilgiler (ad, soyad, telefon numarası)\n'
-                '• Konum bilgileri (kart kullanımı sırasında)\n'
-                '• Kullanım istatistikleri ve tercihler',
-                style: TextStyle(
-                  color: AppTheme.textSecondaryColor,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '2. Verilerin Kullanımı',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: AppTheme.textPrimaryColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '• Hizmetlerimizi sağlamak ve geliştirmek\n'
-                '• Güvenliğinizi sağlamak\n'
-                '• Yasal yükümlülüklerimizi yerine getirmek',
-                style: TextStyle(
-                  color: AppTheme.textSecondaryColor,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '3. Veri Güvenliği',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: AppTheme.textPrimaryColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Kişisel verileriniz, endüstri standardı güvenlik önlemleri ile korunmaktadır ve yetkisiz erişime karşı düzenli olarak denetlenmektedir.',
-                style: TextStyle(
-                  color: AppTheme.textSecondaryColor,
-                  height: 1.4,
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Anladım',
-              style: TextStyle(
-                color: AppTheme.primaryColor,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -703,58 +588,100 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   Widget _buildTermsCheckbox() {
-    return Row(
-      children: [
-        SizedBox(
-          height: 24,
-          width: 24,
-          child: Checkbox(
-            value: _acceptTerms,
-            activeColor: AppTheme.primaryColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(4),
-            ),
-            onChanged: (value) {
-              setState(() {
-                _acceptTerms = value ?? false;
-              });
-            },
-          ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.primaryColor.withOpacity(0.2),
+          width: 1,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                _acceptTerms = !_acceptTerms;
-              });
-            },
-            child: RichText(
-              text: TextSpan(
-                style: TextStyle(
-                  color: AppTheme.textSecondaryColor,
-                  fontSize: 13,
-                ),
-                children: [
-                  const TextSpan(text: 'Kullanım koşullarını ve '),
-                  TextSpan(
-                    text: 'gizlilik politikasını ',
-                    style: TextStyle(
-                      color: AppTheme.primaryColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    recognizer: TapGestureRecognizer()
-                      ..onTap = () {
-                        _showPrivacyPolicyDialog();
-                      },
-                  ),
-                  const TextSpan(text: 'kabul ediyorum.'),
-                ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Kişisel Verilerinizin İşlenmesi',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          RichText(
+            text: TextSpan(
+              style: TextStyle(
+                color: AppTheme.textSecondaryColor,
+                fontSize: 12,
+                height: 1.4,
               ),
+              children: [
+                const TextSpan(
+                  text: 'Kişisel verileriniz, ',
+                ),
+                TextSpan(
+                  text: 'Aydınlatma Metni',
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.bold,
+                    decoration: TextDecoration.underline,
+                  ),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () {
+                      SingleContractModal.showKvkkIllumination(context);
+                    },
+                ),
+                const TextSpan(
+                  text: ' kapsamında işlenmektedir. "Kayıt Ol" butonuna basarak ',
+                ),
+                TextSpan(
+                  text: 'Üyelik Sözleşmesi',
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.bold,
+                    decoration: TextDecoration.underline,
+                  ),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () {
+                      SingleContractModal.showMembershipContract(context);
+                    },
+                ),
+                const TextSpan(text: ', '),
+                TextSpan(
+                  text: 'Gizlilik Politikası',
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.bold,
+                    decoration: TextDecoration.underline,
+                  ),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () {
+                      SingleContractModal.showPrivacyPolicy(context);
+                    },
+                ),
+                const TextSpan(text: ' ve '),
+                TextSpan(
+                  text: 'Veri İşleme İzni',
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.bold,
+                    decoration: TextDecoration.underline,
+                  ),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () {
+                      SingleContractModal.showDataProcessingConsent(context);
+                    },
+                ),
+                const TextSpan(
+                  text: '\'ni okuduğunuzu ve kabul ettiğinizi onaylıyorsunuz.',
+                ),
+              ],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
